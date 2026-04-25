@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-background flex items-center justify-center px-6">
     <div class="w-full max-w-md">
       <div class="text-center mb-12">
-        <h1 class="text-3xl font-extrabold text-primary font-headline tracking-tighter">精析编辑</h1>
+        <h1 class="text-3xl font-extrabold text-primary font-headline tracking-tighter">GoBlog</h1>
         <p class="text-sm text-slate-500 mt-2">登录您的账户</p>
       </div>
 

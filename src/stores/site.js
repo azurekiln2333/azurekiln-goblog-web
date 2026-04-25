@@ -16,7 +16,7 @@ export const useSiteStore = defineStore('site', () => {
   }
 
   function getSiteName() {
-    return siteConfig.value?.name || '精析编辑'
+    return siteConfig.value?.name || 'GoBlog'
   }
 
   return {

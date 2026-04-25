@@ -11,7 +11,7 @@
       <div class="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-transparent to-transparent"></div>
       <div class="absolute bottom-0 left-0 p-12 max-w-2xl text-white">
         <span class="inline-block px-3 py-1 mb-4 text-[10px] font-bold tracking-widest uppercase bg-blue-600 text-white rounded-full">特色文章</span>
-        <h1 class="text-4xl md:text-5xl font-extrabold leading-tight mb-4 font-headline">{{ banner.title || '欢迎来到精析编辑' }}</h1>
+        <h1 class="text-4xl md:text-5xl font-extrabold leading-tight mb-4 font-headline">{{ banner.title || '欢迎来到GoBlog' }}</h1>
         <p class="text-lg text-blue-50 mb-6 font-body opacity-90">{{ banner.abstract || '探索技术与设计的交汇点' }}</p>
         <router-link
           v-if="banner.href"

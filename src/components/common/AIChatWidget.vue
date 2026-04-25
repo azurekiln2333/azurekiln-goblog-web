@@ -2,7 +2,7 @@
   <div class="bg-white p-6 rounded-xl border border-blue-200">
     <div class="flex items-center gap-2 mb-4">
       <span class="material-symbols-outlined text-blue-600" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
-      <h3 class="text-xs font-bold uppercase tracking-widest text-blue-800">精析 AI</h3>
+      <h3 class="text-xs font-bold uppercase tracking-widest text-blue-800">GoBlog AI</h3>
     </div>
     <div class="bg-blue-50 p-3 rounded-md mb-4 shadow-sm">
       <p class="text-xs text-slate-700 leading-relaxed">{{ lastReply || '您好！有什么可以帮您？' }}</p>
