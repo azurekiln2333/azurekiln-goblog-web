@@ -5,6 +5,10 @@
       <button class="px-4 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:opacity-90 transition-opacity" @click="showCreate = true">添加轮播图</button>
     </header>
 
+    <div v-if="errorMsg" class="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+      {{ errorMsg }}
+    </div>
+
     <div v-if="showCreate" class="bg-white p-6 rounded-2xl border border-slate-100 mb-8">
       <h3 class="font-bold mb-4">新建轮播图</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -22,9 +26,17 @@
         <label for="banner-show" class="text-sm">显示</label>
       </div>
       <div class="flex gap-3">
-        <button class="px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl" @click="createNewBanner">创建</button>
-        <button class="px-6 py-2 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100" @click="showCreate = false">取消</button>
+        <button class="inline-flex items-center gap-2 px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl disabled:cursor-not-allowed disabled:opacity-60" :disabled="creating" @click="createNewBanner">
+          <span v-if="creating" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          {{ creating ? '创建中...' : '创建' }}
+        </button>
+        <button class="px-6 py-2 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100 disabled:opacity-50" :disabled="creating" @click="showCreate = false">取消</button>
       </div>
+    </div>
+
+    <div v-if="loading" class="py-20 text-center text-slate-400">
+      <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+      <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载轮播图中</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -38,10 +50,17 @@
             <span class="text-[10px] font-bold px-2 py-1 rounded-full" :class="banner.isShow ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-600'">
               {{ banner.isShow ? '显示中' : '已隐藏' }}
             </span>
-            <button class="text-[10px] font-bold text-red-600 hover:underline" @click="deleteBannerById(banner.id)">删除</button>
+            <button class="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 hover:underline disabled:opacity-50" :disabled="deletingId === banner.id" @click="deleteBannerById(banner.id)">
+              <span v-if="deletingId === banner.id" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              删除
+            </button>
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-if="!loading && banners.length === 0" class="py-16 text-center text-sm text-slate-400">
+      暂无轮播图
     </div>
   </div>
 </template>
@@ -53,29 +72,51 @@ import { getBannerList, createBanner, deleteBanner } from '@/api/banner'
 const banners = ref([])
 const showCreate = ref(false)
 const newBanner = ref({ cover: '', href: '', isShow: true })
+const loading = ref(false)
+const creating = ref(false)
+const deletingId = ref(null)
+const errorMsg = ref('')
 
 async function fetchBanners() {
+  loading.value = true
+  errorMsg.value = ''
   try {
     const res = await getBannerList()
     banners.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '轮播图加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 async function createNewBanner() {
+  creating.value = true
+  errorMsg.value = ''
   try {
     await createBanner(newBanner.value)
     showCreate.value = false
     newBanner.value = { cover: '', href: '', isShow: true }
-    fetchBanners()
-  } catch { /* ignore */ }
+    await fetchBanners()
+  } catch (e) {
+    errorMsg.value = e.message || '轮播图创建失败'
+  } finally {
+    creating.value = false
+  }
 }
 
 async function deleteBannerById(id) {
   if (!confirm('确认删除？')) return
+  deletingId.value = id
+  errorMsg.value = ''
   try {
     await deleteBanner({ IDList: [id] })
-    fetchBanners()
-  } catch { /* ignore */ }
+    await fetchBanners()
+  } catch (e) {
+    errorMsg.value = e.message || '轮播图删除失败'
+  } finally {
+    deletingId.value = null
+  }
 }
 
 onMounted(fetchBanners)

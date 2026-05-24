@@ -5,6 +5,10 @@
       <button class="px-4 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:opacity-90 transition-opacity" @click="showCreate = true">添加友链</button>
     </header>
 
+    <div v-if="errorMsg" class="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+      {{ errorMsg }}
+    </div>
+
     <div v-if="showCreate" class="bg-white p-6 rounded-2xl border border-slate-100 mb-8">
       <h3 class="font-bold mb-4">新建友链</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -26,8 +30,11 @@
         </div>
       </div>
       <div class="flex gap-3">
-        <button class="px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl" @click="createNewLink">创建</button>
-        <button class="px-6 py-2 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100" @click="showCreate = false">取消</button>
+        <button class="inline-flex items-center gap-2 px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl disabled:cursor-not-allowed disabled:opacity-60" :disabled="creating" @click="createNewLink">
+          <span v-if="creating" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          {{ creating ? '创建中...' : '创建' }}
+        </button>
+        <button class="px-6 py-2 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100 disabled:opacity-50" :disabled="creating" @click="showCreate = false">取消</button>
       </div>
     </div>
 
@@ -42,6 +49,12 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-50">
+          <tr v-if="loading">
+            <td colspan="4" class="px-6 py-12 text-center text-slate-400">
+              <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+              <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载友链中</p>
+            </td>
+          </tr>
           <tr v-for="link in links" :key="link.id" class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4 font-medium">{{ link.name }}</td>
             <td class="px-6 py-4 text-slate-500 text-xs">{{ link.url }}</td>
@@ -51,8 +64,14 @@
               </span>
             </td>
             <td class="px-6 py-4">
-              <button class="text-[10px] font-bold text-red-600 hover:underline" @click="deleteLink(link.id)">删除</button>
+              <button class="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 hover:underline disabled:opacity-50" :disabled="deletingId === link.id" @click="deleteLink(link.id)">
+                <span v-if="deletingId === link.id" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                删除
+              </button>
             </td>
+          </tr>
+          <tr v-if="!loading && links.length === 0">
+            <td colspan="4" class="px-6 py-12 text-center text-sm text-slate-400">暂无友链</td>
           </tr>
         </tbody>
       </table>
@@ -67,29 +86,51 @@ import { getFriendLinks, createFriendLink, deleteFriendLink } from '@/api/friend
 const links = ref([])
 const showCreate = ref(false)
 const newLink = ref({ name: '', url: '', logo: '', is_show: true })
+const loading = ref(false)
+const creating = ref(false)
+const deletingId = ref(null)
+const errorMsg = ref('')
 
 async function fetchLinks() {
+  loading.value = true
+  errorMsg.value = ''
   try {
     const res = await getFriendLinks()
     links.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '友链加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 async function createNewLink() {
+  creating.value = true
+  errorMsg.value = ''
   try {
     await createFriendLink(newLink.value)
     showCreate.value = false
     newLink.value = { name: '', url: '', logo: '', is_show: true }
-    fetchLinks()
-  } catch { /* ignore */ }
+    await fetchLinks()
+  } catch (e) {
+    errorMsg.value = e.message || '友链创建失败'
+  } finally {
+    creating.value = false
+  }
 }
 
 async function deleteLink(id) {
   if (!confirm('确认删除？')) return
+  deletingId.value = id
+  errorMsg.value = ''
   try {
     await deleteFriendLink({ IDList: [id] })
-    fetchLinks()
-  } catch { /* ignore */ }
+    await fetchLinks()
+  } catch (e) {
+    errorMsg.value = e.message || '友链删除失败'
+  } finally {
+    deletingId.value = null
+  }
 }
 
 onMounted(fetchLinks)

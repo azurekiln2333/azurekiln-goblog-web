@@ -9,9 +9,21 @@
           <option value="2">操作日志</option>
           <option value="3">错误日志</option>
         </select>
-        <button v-if="selectedIds.length > 0" class="px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-xl" @click="deleteSelected">删除选中</button>
+        <button
+          v-if="selectedIds.length > 0"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-xl disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="deleting"
+          @click="deleteSelected"
+        >
+          <span v-if="deleting" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          {{ deleting ? '删除中...' : '删除选中' }}
+        </button>
       </div>
     </header>
+
+    <div v-if="errorMsg" class="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+      {{ errorMsg }}
+    </div>
 
     <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
       <table class="w-full text-sm">
@@ -26,6 +38,12 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-50">
+          <tr v-if="loading">
+            <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+              <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+              <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载日志中</p>
+            </td>
+          </tr>
           <tr v-for="log in logs" :key="log.id" class="hover:bg-slate-50 transition-colors">
             <td class="px-4 py-3"><input type="checkbox" v-model="selectedIds" :value="log.id" /></td>
             <td class="px-4 py-3 text-slate-500">{{ log.id }}</td>
@@ -33,6 +51,9 @@
             <td class="px-4 py-3 text-slate-700 max-w-xs truncate">{{ log.content || log.serviceName || '-' }}</td>
             <td class="px-4 py-3 text-slate-500">{{ log.ip || '-' }}</td>
             <td class="px-4 py-3 text-slate-500 text-xs">{{ formatDate(log.createdAt) }}</td>
+          </tr>
+          <tr v-if="!loading && logs.length === 0">
+            <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-400">暂无日志</td>
           </tr>
         </tbody>
       </table>
@@ -47,14 +68,23 @@ import { getLogList, deleteLogs } from '@/api/log'
 const logs = ref([])
 const logType = ref('')
 const selectedIds = ref([])
+const loading = ref(false)
+const deleting = ref(false)
+const errorMsg = ref('')
 
 async function fetchLogs() {
+  loading.value = true
+  errorMsg.value = ''
   try {
     const params = { page: 1, limit: 50 }
     if (logType.value) params.logType = Number(logType.value)
     const res = await getLogList(params)
     logs.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '日志加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 function toggleAll(e) {
@@ -68,11 +98,17 @@ function toggleAll(e) {
 async function deleteSelected() {
   if (selectedIds.value.length === 0) return
   if (!confirm('确认删除？')) return
+  deleting.value = true
+  errorMsg.value = ''
   try {
     await deleteLogs({ IDList: selectedIds.value })
     selectedIds.value = []
-    fetchLogs()
-  } catch { /* ignore */ }
+    await fetchLogs()
+  } catch (e) {
+    errorMsg.value = e.message || '日志删除失败'
+  } finally {
+    deleting.value = false
+  }
 }
 
 function formatDate(dateStr) {
