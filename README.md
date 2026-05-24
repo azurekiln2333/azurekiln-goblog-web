@@ -63,6 +63,7 @@ npm run build
 - `PUT /site/:name` 在 `GoBlog-StarDreamerCyberNook-New/router/site_router.go` 中被注释，当前没有实际暴露。因此前端站点设置页保持只读，不发送保存请求。
 - `GET /user/friend/check` 在路由文件中有注册行，但没有绑定处理函数，前端暂不把它作为关键流程依赖。
 - `UpdatePasswordView` 后端方法存在，但没有路由注册，前端不暴露修改密码请求。
+- `GET /banner` 后端当前只查询 `isShow=true` 的轮播图，后台隐藏轮播图后该项会从列表中消失，不能通过同一列表重新显示。
 - `TestRouter` 只在 debug 模式注册，前端不作为正式功能覆盖。
 
 ## 繁體中文
@@ -99,6 +100,7 @@ npm run build
 - 站點設定更新路由目前未註冊，因此相關頁面只讀。
 - `GET /user/friend/check` 沒有處理函式，暫不依賴。
 - 修改密碼方法存在於後端程式碼，但沒有路由註冊，前端不暴露。
+- `GET /banner` 目前只回傳 `isShow=true` 的輪播圖，隱藏後不會再出現在同一列表中。
 
 ## English
 
@@ -134,3 +136,4 @@ Build output goes to `dist/`. The frontend no longer writes directly into the ol
 - Site configuration updates are read-only in the UI because the backend update route is not registered.
 - `GET /user/friend/check` appears in the router file without a handler and is not used as a required frontend flow.
 - The password update handler exists in backend code but has no registered route, so the frontend does not expose it.
+- `GET /banner` currently returns only banners with `isShow=true`, so hidden banners disappear from the same admin list.
