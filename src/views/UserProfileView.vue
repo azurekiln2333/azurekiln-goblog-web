@@ -64,6 +64,13 @@
           </button>
           <button
             class="px-6 py-3 text-sm font-bold border-b-2 transition-colors"
+            :class="activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant'"
+            @click="switchTab('history')"
+          >
+            TA的足迹
+          </button>
+          <button
+            class="px-6 py-3 text-sm font-bold border-b-2 transition-colors"
             :class="activeTab === 'following' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant'"
             @click="switchTab('following')"
           >
@@ -92,11 +99,76 @@
             <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
             <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载收藏夹中</p>
           </div>
-          <div v-for="folder in folders" :key="folder.id" class="p-5 bg-white rounded-xl border border-blue-100 hover:border-blue-200 transition-colors">
+          <button
+            v-for="folder in folders"
+            :key="folder.id"
+            class="p-5 bg-white rounded-xl border border-blue-100 text-left hover:border-blue-200 hover:bg-blue-light transition-colors"
+            @click="openFolder(folder)"
+          >
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <span class="material-symbols-outlined rounded-lg bg-blue-light p-2 text-primary">folder</span>
+              <span class="text-[10px] font-bold text-on-surface-variant">{{ folder.articleCount || 0 }} 篇文章</span>
+            </div>
             <h4 class="font-bold text-base mb-1">{{ folder.title }}</h4>
             <p class="text-xs text-on-surface-variant">{{ folder.abstract || '暂无简介' }}</p>
+          </button>
+          <div v-if="selectedFolder" class="col-span-2 rounded-xl bg-white p-5 ring-1 ring-blue-100">
+            <div class="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 class="font-bold text-on-surface">{{ selectedFolder.title }}</h3>
+                <p class="mt-1 text-xs text-on-surface-variant">{{ selectedFolder.abstract || '暂无简介' }}</p>
+              </div>
+              <button class="material-symbols-outlined text-slate-400 hover:text-slate-700" @click="closeFolder">close</button>
+            </div>
+            <div v-if="loadingFolderArticles" class="py-12 text-center text-slate-400">
+              <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+              <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载收藏文章中</p>
+            </div>
+            <div v-else-if="folderArticleError" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {{ folderArticleError }}
+            </div>
+            <div v-else-if="folderArticles.length === 0" class="py-10 text-center text-sm text-slate-400">
+              这个收藏夹暂无公开文章
+            </div>
+            <div v-else class="space-y-3">
+              <button
+                v-for="article in folderArticles"
+                :key="article.id"
+                class="flex w-full items-center gap-4 rounded-xl bg-slate-50 p-4 text-left hover:bg-blue-light"
+                @click="$router.push(`/article/${article.id}`)"
+              >
+                <img v-if="article.cover" :src="article.cover" :alt="article.title" class="h-14 w-20 rounded-lg object-cover" />
+                <div class="min-w-0 flex-1">
+                  <h4 class="truncate text-sm font-bold">{{ article.title }}</h4>
+                  <p class="mt-1 truncate text-xs text-on-surface-variant">{{ article.abstract || formatDate(article.createdAt) }}</p>
+                </div>
+              </button>
+            </div>
           </div>
           <div v-if="!loadingFolders && folders.length === 0" class="col-span-2 text-center py-12 text-slate-400">暂无公开收藏夹</div>
+        </div>
+
+        <div v-if="activeTab === 'history'" class="space-y-4">
+          <div v-if="loadingHistory" class="py-16 text-center text-slate-400">
+            <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+            <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载浏览记录中</p>
+          </div>
+          <div v-if="historyError" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {{ historyError }}
+          </div>
+          <button
+            v-for="item in historyList"
+            :key="item.id"
+            class="flex w-full items-center gap-4 rounded-xl bg-white p-5 text-left border border-blue-100 hover:border-blue-200 hover:bg-blue-light transition-colors"
+            @click="$router.push(`/article/${item.articleID}`)"
+          >
+            <img v-if="item.cover" :src="item.cover" :alt="item.title" class="h-16 w-24 rounded-lg object-cover" />
+            <div class="min-w-0 flex-1">
+              <h4 class="truncate text-sm font-bold text-on-surface">{{ item.title || `文章 #${item.articleID}` }}</h4>
+              <p class="mt-1 text-xs text-on-surface-variant">{{ formatDate(item.lookDate || item.createdAt) }}</p>
+            </div>
+          </button>
+          <div v-if="!loadingHistory && historyList.length === 0 && !historyError" class="text-center py-12 text-slate-400">暂无公开浏览记录</div>
         </div>
 
         <div v-if="activeTab === 'following'" class="space-y-4">
@@ -165,7 +237,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getUserInfo } from '@/api/user'
-import { getArticleList, getCollectFolders } from '@/api/article'
+import { getArticleHistory, getArticleList, getCollectArticles, getCollectFolders } from '@/api/article'
 import { followUser, unfollowUser, getFollowList, getFollowerList } from '@/api/follow'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
@@ -178,15 +250,22 @@ const uiStore = useUiStore()
 const userInfo = ref({})
 const articles = ref([])
 const folders = ref([])
+const selectedFolder = ref(null)
+const folderArticles = ref([])
+const historyList = ref([])
 const followingList = ref([])
 const followerList = ref([])
 const activeTab = ref('articles')
 const loadingUser = ref(false)
 const loadingArticles = ref(false)
 const loadingFolders = ref(false)
+const loadingFolderArticles = ref(false)
+const loadingHistory = ref(false)
 const loadingFollowing = ref(false)
 const loadingFollowers = ref(false)
 const errorMsg = ref('')
+const folderArticleError = ref('')
+const historyError = ref('')
 const followError = ref('')
 const followerError = ref('')
 const followLoading = ref(false)
@@ -231,11 +310,52 @@ async function fetchData() {
 
 function switchTab(tab) {
   activeTab.value = tab
+  if (tab !== 'collections') {
+    closeFolder()
+  }
+  if (tab === 'history' && historyList.value.length === 0) {
+    fetchHistory()
+  }
   if (tab === 'following' && followingList.value.length === 0) {
     fetchFollowing()
   }
   if (tab === 'followers' && followerList.value.length === 0) {
     fetchFollowers()
+  }
+}
+
+async function openFolder(folder) {
+  selectedFolder.value = folder
+  folderArticles.value = []
+  folderArticleError.value = ''
+  loadingFolderArticles.value = true
+  try {
+    const res = await getCollectArticles({ id: folder.id, page: 1, limit: 30 })
+    folderArticles.value = res.data?.list || []
+  } catch (e) {
+    folderArticleError.value = e.message || '收藏夹文章加载失败'
+  } finally {
+    loadingFolderArticles.value = false
+  }
+}
+
+function closeFolder() {
+  selectedFolder.value = null
+  folderArticles.value = []
+  folderArticleError.value = ''
+}
+
+async function fetchHistory() {
+  loadingHistory.value = true
+  historyError.value = ''
+  try {
+    const res = await getArticleHistory({ userID: profileUserId.value, page: 1, limit: 50 })
+    historyList.value = res.data?.list || []
+  } catch (e) {
+    historyList.value = []
+    historyError.value = e.message || '浏览记录加载失败'
+  } finally {
+    loadingHistory.value = false
   }
 }
 
@@ -353,6 +473,8 @@ function formatDate(dateStr) {
 watch(() => route.params.id, () => {
   followingList.value = []
   followerList.value = []
+  historyList.value = []
+  closeFolder()
   activeTab.value = 'articles'
   fetchData()
 })
