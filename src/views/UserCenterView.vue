@@ -301,6 +301,93 @@
             </form>
 
             <div class="border-t border-slate-100 pt-6">
+              <h3 class="text-sm font-bold text-slate-900">重置邮箱</h3>
+              <p class="mt-1 text-xs text-slate-500">验证码会同时发送到当前邮箱和新邮箱，需在 2 分钟内完成验证。</p>
+
+              <div class="mt-4 space-y-4">
+                <div>
+                  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">新邮箱</label>
+                  <input v-model="resetEmailForm.email" type="email" class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="new@example.com" />
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">图形验证码</label>
+                  <div class="mt-1 flex gap-3">
+                    <input v-model="resetEmailForm.captchaCode" class="min-w-0 flex-1 rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="输入验证码" />
+                    <button
+                      v-if="resetEmailCaptcha?.captcha"
+                      type="button"
+                      class="h-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-slate-200"
+                      title="点击刷新验证码"
+                      @click="fetchResetEmailCaptcha"
+                    >
+                      <img :src="resetEmailCaptcha.captcha" alt="邮箱重置验证码" class="h-full" />
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      class="inline-flex h-12 items-center gap-1 rounded-lg bg-blue-50 px-4 text-xs font-bold text-primary disabled:opacity-50"
+                      :disabled="resetEmailCaptchaLoading"
+                      @click="fetchResetEmailCaptcha"
+                    >
+                      <span v-if="resetEmailCaptchaLoading" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                      获取验证码
+                    </button>
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-sm font-bold text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="resetEmailSending || resetEmailCountdown > 0"
+                    @click="sendResetEmailCodes"
+                  >
+                    <span v-if="resetEmailSending" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    {{ resetEmailCountdown > 0 ? `${resetEmailCountdown}s 后重发` : (resetEmailSending ? '发送中...' : '发送邮箱验证码') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="resetEmailCaptchaLoading"
+                    @click="fetchResetEmailCaptcha"
+                  >
+                    <span v-if="resetEmailCaptchaLoading" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    刷新图形验证码
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">当前邮箱验证码</label>
+                    <input v-model="resetEmailForm.resetEmailCode" class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="原邮箱收到的验证码" />
+                  </div>
+                  <div>
+                    <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">新邮箱验证码</label>
+                    <input v-model="resetEmailForm.emailCode" class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="新邮箱收到的验证码" />
+                  </div>
+                </div>
+
+                <div v-if="resetEmailError" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                  {{ resetEmailError }}
+                </div>
+                <div v-if="resetEmailSuccess" class="rounded-lg bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+                  {{ resetEmailSuccess }}
+                </div>
+
+                <div class="flex justify-end">
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="resetEmailSaving"
+                    @click="submitResetEmail"
+                  >
+                    <span v-if="resetEmailSaving" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    {{ resetEmailSaving ? '提交中...' : '确认重置邮箱' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-6">
               <div class="mb-4 flex items-center justify-between">
                 <h3 class="text-sm font-bold text-slate-900">登录日志</h3>
                 <button class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-50" :disabled="loginLogsLoading" @click="fetchLoginLogs">
@@ -456,7 +543,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMessageStore } from '@/stores/message'
-import { updateProfile, getLoginLog } from '@/api/user'
+import { getCaptcha } from '@/api/captcha'
+import { updateProfile, getLoginLog, sendEmailCode, resetEmail } from '@/api/user'
 import {
   createCollectFolder,
   getCollectFolders,
@@ -497,12 +585,28 @@ const profileForm = ref({
   openFollow: true,
   openFans: true
 })
+const resetEmailForm = ref({
+  email: '',
+  captchaID: '',
+  captchaCode: '',
+  emailID: '',
+  resetEmailID: '',
+  emailCode: '',
+  resetEmailCode: ''
+})
+const resetEmailCaptcha = ref(null)
 const folderSaving = ref(false)
 const folderActionKey = ref('')
 const folderError = ref('')
 const profileSaving = ref(false)
 const profileError = ref('')
 const profileSuccess = ref('')
+const resetEmailCaptchaLoading = ref(false)
+const resetEmailSending = ref(false)
+const resetEmailSaving = ref(false)
+const resetEmailCountdown = ref(0)
+const resetEmailError = ref('')
+const resetEmailSuccess = ref('')
 const errorMsg = ref('')
 const collectionsLoading = ref(false)
 const folderArticlesLoading = ref(false)
@@ -529,6 +633,7 @@ onMounted(async () => {
   fetchHistory()
   fetchSessions()
   fetchLoginLogs()
+  fetchResetEmailCaptcha()
 })
 
 function fillProfileForm() {
@@ -600,6 +705,102 @@ async function fetchLoginLogs() {
     loginLogsError.value = e.message || '登录日志加载失败'
   } finally {
     loginLogsLoading.value = false
+  }
+}
+
+async function fetchResetEmailCaptcha() {
+  resetEmailCaptchaLoading.value = true
+  resetEmailError.value = ''
+  try {
+    const res = await getCaptcha('重置邮箱')
+    resetEmailCaptcha.value = res.data
+    resetEmailForm.value.captchaID = res.data?.captchaID || ''
+    resetEmailForm.value.captchaCode = ''
+  } catch (e) {
+    resetEmailError.value = e.message || '图形验证码加载失败'
+  } finally {
+    resetEmailCaptchaLoading.value = false
+  }
+}
+
+function startResetEmailCountdown() {
+  resetEmailCountdown.value = 60
+  const timer = window.setInterval(() => {
+    resetEmailCountdown.value -= 1
+    if (resetEmailCountdown.value <= 0) {
+      window.clearInterval(timer)
+    }
+  }, 1000)
+}
+
+async function sendResetEmailCodes() {
+  resetEmailError.value = ''
+  resetEmailSuccess.value = ''
+  if (!resetEmailForm.value.email.trim()) {
+    resetEmailError.value = '请填写新邮箱'
+    return
+  }
+  if (!resetEmailForm.value.captchaID || !resetEmailForm.value.captchaCode.trim()) {
+    resetEmailError.value = '请先填写图形验证码'
+    return
+  }
+
+  resetEmailSending.value = true
+  try {
+    const res = await sendEmailCode({
+      type: '重置邮箱',
+      email: resetEmailForm.value.email.trim(),
+      captchaID: resetEmailForm.value.captchaID,
+      captchaCode: resetEmailForm.value.captchaCode.trim()
+    })
+    resetEmailForm.value.emailID = res.data?.emailID || ''
+    resetEmailForm.value.resetEmailID = res.data?.resetEmailID || ''
+    resetEmailSuccess.value = '验证码已发送，请检查当前邮箱和新邮箱'
+    startResetEmailCountdown()
+  } catch (e) {
+    resetEmailError.value = e.message || '邮箱验证码发送失败'
+    await fetchResetEmailCaptcha()
+  } finally {
+    resetEmailSending.value = false
+  }
+}
+
+async function submitResetEmail() {
+  resetEmailError.value = ''
+  resetEmailSuccess.value = ''
+  if (!resetEmailForm.value.emailID || !resetEmailForm.value.resetEmailID) {
+    resetEmailError.value = '请先发送邮箱验证码'
+    return
+  }
+  if (!resetEmailForm.value.emailCode.trim() || !resetEmailForm.value.resetEmailCode.trim()) {
+    resetEmailError.value = '请填写当前邮箱和新邮箱验证码'
+    return
+  }
+
+  resetEmailSaving.value = true
+  try {
+    await resetEmail({
+      emailID: resetEmailForm.value.emailID,
+      emailCode: resetEmailForm.value.emailCode.trim(),
+      ResetEmailID: resetEmailForm.value.resetEmailID,
+      ResetEmailCode: resetEmailForm.value.resetEmailCode.trim()
+    })
+    resetEmailSuccess.value = '邮箱已重置'
+    resetEmailForm.value = {
+      email: '',
+      captchaID: '',
+      captchaCode: '',
+      emailID: '',
+      resetEmailID: '',
+      emailCode: '',
+      resetEmailCode: ''
+    }
+    await userStore.fetchUserInfo()
+    await fetchResetEmailCaptcha()
+  } catch (e) {
+    resetEmailError.value = e.message || '邮箱重置失败'
+  } finally {
+    resetEmailSaving.value = false
   }
 }
 
