@@ -22,7 +22,8 @@
       </div>
       <div class="flex gap-4 mt-2 px-2">
         <button class="text-[10px] font-bold text-primary uppercase tracking-widest" @click="showReplyInput = !showReplyInput">回复</button>
-        <button class="text-[10px] font-bold text-slate-400 hover:text-primary uppercase tracking-widest" @click="$emit('digg', comment.id)">
+        <button class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-primary uppercase tracking-widest disabled:opacity-50" :disabled="isPending(comment.id)" @click="$emit('digg', comment.id)">
+          <span v-if="isPending(comment.id)" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
           赞同 ({{ comment.diggCount || 0 }})
         </button>
       </div>
@@ -34,7 +35,10 @@
           placeholder="回复..."
           @keyup.enter="submitReply"
         />
-        <button class="px-4 py-2 bg-primary text-white text-xs rounded font-bold" @click="submitReply">发送</button>
+        <button class="inline-flex items-center gap-1 px-4 py-2 bg-primary text-white text-xs rounded font-bold disabled:cursor-not-allowed disabled:opacity-60" :disabled="isPending(comment.id)" @click="submitReply">
+          <span v-if="isPending(comment.id)" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+          发送
+        </button>
       </div>
 
       <div v-if="childComments.length > 0" class="mt-6 space-y-4 ml-6 pl-6 border-l border-blue-100">
@@ -61,7 +65,8 @@
             </div>
             <div class="flex gap-4 mt-2 px-2">
               <button class="text-[10px] font-bold text-primary uppercase tracking-widest" @click="replyToChild = child.id; childReplyText = ''">回复</button>
-              <button class="text-[10px] font-bold text-slate-400 hover:text-primary uppercase tracking-widest" @click="$emit('digg', child.id)">
+              <button class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-primary uppercase tracking-widest disabled:opacity-50" :disabled="isPending(child.id)" @click="$emit('digg', child.id)">
+                <span v-if="isPending(child.id)" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
                 赞同 ({{ child.diggCount || 0 }})
               </button>
             </div>
@@ -72,18 +77,27 @@
                 placeholder="回复..."
                 @keyup.enter="submitChildReply(child)"
               />
-              <button class="px-4 py-2 bg-primary text-white text-xs rounded font-bold" @click="submitChildReply(child)">发送</button>
+              <button class="inline-flex items-center gap-1 px-4 py-2 bg-primary text-white text-xs rounded font-bold disabled:cursor-not-allowed disabled:opacity-60" :disabled="isPending(child.id)" @click="submitChildReply(child)">
+                <span v-if="isPending(child.id)" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                发送
+              </button>
             </div>
           </div>
         </div>
       </div>
 
+      <div v-if="errorMsg" class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+        {{ errorMsg }}
+      </div>
+
       <button
         v-if="hasMoreChildren && !childrenLoaded"
-        class="mt-3 text-[10px] font-bold text-primary uppercase tracking-widest hover:underline"
+        class="mt-3 inline-flex items-center gap-1 text-[10px] font-bold text-primary uppercase tracking-widest hover:underline disabled:opacity-50"
+        :disabled="childrenLoading"
         @click="loadChildren"
       >
-        查看更多回复
+        <span v-if="childrenLoading" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+        {{ childrenLoading ? '加载中...' : '查看更多回复' }}
       </button>
     </div>
   </div>
@@ -95,7 +109,8 @@ import { getChildComments } from '@/api/comment'
 
 const props = defineProps({
   comment: { type: Object, required: true },
-  articleAuthorId: { type: Number, default: null }
+  articleAuthorId: { type: Number, default: null },
+  pendingActionId: { type: Number, default: null }
 })
 
 const emit = defineEmits(['reply', 'digg'])
@@ -107,6 +122,8 @@ const replyToChild = ref(null)
 const childReplyText = ref('')
 const childrenLoaded = ref(false)
 const hasMoreChildren = ref(true)
+const childrenLoading = ref(false)
+const errorMsg = ref('')
 
 const isAuthor = props.comment.userID === props.articleAuthorId
 
@@ -123,12 +140,22 @@ function timeAgo(dateStr) {
 }
 
 async function loadChildren() {
+  childrenLoading.value = true
+  errorMsg.value = ''
   try {
     const res = await getChildComments({ root: props.comment.id, page: 1, limit: 50 })
     childComments.value = res.data?.list || []
     childrenLoaded.value = true
     hasMoreChildren.value = false
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '回复加载失败'
+  } finally {
+    childrenLoading.value = false
+  }
+}
+
+function isPending(id) {
+  return props.pendingActionId === id
 }
 
 function submitReply() {

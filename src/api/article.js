@@ -26,7 +26,7 @@ export const getReviewList = (params) => request.get('/article/review', { params
 
 export const reviewArticle = (id, data) => request.post(`/article/review/${id}`, data)
 
-export const recordArticleView = (data) => request.post('/article/look', data)
+export const recordArticleView = (data, config = {}) => request.post('/article/look', data, config)
 
 export const diggArticle = (id) => request.post(`/article/digg/${id}`)
 

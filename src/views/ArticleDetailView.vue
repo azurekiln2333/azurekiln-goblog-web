@@ -3,27 +3,29 @@
     <aside class="hidden lg:flex col-span-1 flex-col items-center gap-6 pt-12 sticky top-24 h-fit">
       <div class="flex flex-col items-center gap-2 group">
         <button
-          class="w-12 h-12 rounded-full bg-white flex items-center justify-center hover:bg-primary hover:text-white transition-all duration-300 border border-blue-100 shadow-sm"
+          class="w-12 h-12 rounded-full bg-white flex items-center justify-center hover:bg-primary hover:text-white transition-all duration-300 border border-blue-100 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
           :class="{ 'bg-primary text-white': isDigged }"
+          :disabled="diggLoading"
           @click="handleDigg"
         >
-          <span class="material-symbols-outlined">thumb_up</span>
+          <span class="material-symbols-outlined" :class="{ 'animate-spin': diggLoading }">{{ diggLoading ? 'progress_activity' : 'thumb_up' }}</span>
         </button>
         <span class="text-[10px] font-bold tracking-widest text-slate-500 uppercase">{{ article.diggCount || 0 }}</span>
       </div>
       <div class="flex flex-col items-center gap-2 group">
         <button
-          class="w-12 h-12 rounded-full bg-white flex items-center justify-center hover:bg-primary hover:text-white transition-all duration-300 border border-blue-100 shadow-sm"
+          class="w-12 h-12 rounded-full bg-white flex items-center justify-center hover:bg-primary hover:text-white transition-all duration-300 border border-blue-100 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
           :class="{ 'bg-primary text-white': isCollected }"
+          :disabled="collectLoading"
           @click="handleCollect"
         >
-          <span class="material-symbols-outlined">bookmark</span>
+          <span class="material-symbols-outlined" :class="{ 'animate-spin': collectLoading }">{{ collectLoading ? 'progress_activity' : 'bookmark' }}</span>
         </button>
         <span class="text-[10px] font-bold tracking-widest text-slate-500 uppercase">{{ article.collectCount || 0 }}</span>
       </div>
       <div class="flex flex-col items-center gap-2 group">
         <button class="w-12 h-12 rounded-full bg-white flex items-center justify-center hover:bg-primary hover:text-white transition-all duration-300 border border-blue-100 shadow-sm" @click="handleShare">
-          <span class="material-symbols-outlined">share</span>
+          <span class="material-symbols-outlined">{{ shareCopied ? 'check' : 'share' }}</span>
         </button>
       </div>
     </aside>
@@ -33,6 +35,9 @@
         <span class="material-symbols-outlined animate-spin text-4xl">progress_activity</span>
       </div>
       <template v-else-if="article.id">
+        <div v-if="errorMsg" class="mb-8 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {{ errorMsg }}
+        </div>
         <header class="mb-12">
           <div class="flex gap-2 mb-6">
             <span v-if="article.categoryTitle" class="px-3 py-1 rounded-full bg-primary text-white font-label text-[10px] uppercase tracking-widest font-bold">{{ article.categoryTitle }}</span>
@@ -61,12 +66,12 @@
         <section class="markdown-body" v-html="renderedContent"></section>
 
         <div class="flex md:hidden justify-around py-6 border-t border-blue-100 mt-12">
-          <button class="flex items-center gap-2" :class="isDigged ? 'text-primary' : 'text-slate-400'" @click="handleDigg">
-            <span class="material-symbols-outlined">thumb_up</span>
+          <button class="flex items-center gap-2 disabled:opacity-60" :class="isDigged ? 'text-primary' : 'text-slate-400'" :disabled="diggLoading" @click="handleDigg">
+            <span class="material-symbols-outlined" :class="{ 'animate-spin': diggLoading }">{{ diggLoading ? 'progress_activity' : 'thumb_up' }}</span>
             <span class="text-xs font-bold">{{ article.diggCount || 0 }}</span>
           </button>
-          <button class="flex items-center gap-2" :class="isCollected ? 'text-primary' : 'text-slate-400'" @click="handleCollect">
-            <span class="material-symbols-outlined">bookmark</span>
+          <button class="flex items-center gap-2 disabled:opacity-60" :class="isCollected ? 'text-primary' : 'text-slate-400'" :disabled="collectLoading" @click="handleCollect">
+            <span class="material-symbols-outlined" :class="{ 'animate-spin': collectLoading }">{{ collectLoading ? 'progress_activity' : 'bookmark' }}</span>
             <span class="text-xs font-bold">收藏</span>
           </button>
         </div>
@@ -88,10 +93,12 @@
                 ></textarea>
                 <div class="flex justify-end mt-4 pt-4 border-t border-blue-50">
                   <button
-                    class="px-6 py-2 bg-primary text-on-primary rounded-md font-bold text-sm hover:bg-blue-800 transition-colors"
+                    class="inline-flex items-center gap-2 px-6 py-2 bg-primary text-on-primary rounded-md font-bold text-sm hover:bg-blue-800 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="commentPosting"
                     @click="postNewComment"
                   >
-                    发布评论
+                    <span v-if="commentPosting" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    {{ commentPosting ? '发布中...' : '发布评论' }}
                   </button>
                 </div>
               </div>
@@ -104,6 +111,7 @@
               :key="comment.id"
               :comment="comment"
               :article-author-id="article.userID"
+              :pending-action-id="commentActionId"
               @reply="handleReply"
               @digg="handleCommentDigg"
             />
@@ -146,10 +154,12 @@ import { marked } from 'marked'
 import { getArticleDetail, diggArticle, collectArticle, recordArticleView } from '@/api/article'
 import { getCommentList, postComment, diggComment } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
+import { useUiStore } from '@/stores/ui'
 import CommentItem from '@/components/article/CommentItem.vue'
 
 const route = useRoute()
 const userStore = useUserStore()
+const uiStore = useUiStore()
 
 const article = ref({})
 const loading = ref(true)
@@ -159,6 +169,12 @@ const commentText = ref('')
 const isDigged = ref(false)
 const isCollected = ref(false)
 const headings = ref([])
+const errorMsg = ref('')
+const diggLoading = ref(false)
+const collectLoading = ref(false)
+const commentPosting = ref(false)
+const commentActionId = ref(null)
+const shareCopied = ref(false)
 
 const renderedContent = computed(() => {
   if (!article.value.content) return ''
@@ -179,6 +195,7 @@ function extractHeadings(html) {
 
 async function fetchArticle() {
   loading.value = true
+  errorMsg.value = ''
   try {
     const id = route.params.id
     const res = await getArticleDetail(id)
@@ -187,44 +204,90 @@ async function fetchArticle() {
       article.value.content = extractHeadings(marked(article.value.content))
     }
     if (userStore.isLoggedIn) {
-      recordArticleView({ articleID: Number(id), timeSecond: 0 })
+      recordArticleView({ articleID: Number(id), timeSecond: 0 }, { showLoading: false })
     }
-  } catch { /* ignore */ }
-  loading.value = false
+  } catch (e) {
+    errorMsg.value = e.message || '文章加载失败'
+    article.value = {}
+  } finally {
+    loading.value = false
+  }
 }
 
 async function fetchComments() {
+  errorMsg.value = ''
   try {
     const res = await getCommentList({ articleID: route.params.id, page: 1, limit: 50 })
     comments.value = res.data?.list || []
     commentCount.value = res.data?.count || 0
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '评论加载失败'
+  }
 }
 
 async function handleDigg() {
-  if (!userStore.isLoggedIn) return
+  if (!userStore.isLoggedIn) {
+    uiStore.notify('请先登录后再点赞', 'warning')
+    return
+  }
+  if (diggLoading.value) return
+  diggLoading.value = true
+  errorMsg.value = ''
   try {
     await diggArticle(route.params.id)
     isDigged.value = !isDigged.value
     article.value.diggCount = (article.value.diggCount || 0) + (isDigged.value ? 1 : -1)
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '点赞失败'
+  } finally {
+    diggLoading.value = false
+  }
 }
 
 async function handleCollect() {
-  if (!userStore.isLoggedIn) return
+  if (!userStore.isLoggedIn) {
+    uiStore.notify('请先登录后再收藏', 'warning')
+    return
+  }
+  if (collectLoading.value) return
+  collectLoading.value = true
+  errorMsg.value = ''
   try {
     await collectArticle({ articleID: Number(route.params.id), collectID: 0 })
     isCollected.value = !isCollected.value
     article.value.collectCount = (article.value.collectCount || 0) + (isCollected.value ? 1 : -1)
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '收藏失败'
+  } finally {
+    collectLoading.value = false
+  }
 }
 
-function handleShare() {
-  navigator.clipboard?.writeText(window.location.href)
+async function handleShare() {
+  try {
+    await navigator.clipboard?.writeText(window.location.href)
+    shareCopied.value = true
+    uiStore.notify('链接已复制', 'success')
+    window.setTimeout(() => {
+      shareCopied.value = false
+    }, 1800)
+  } catch {
+    uiStore.notify('复制失败，请手动复制地址栏链接', 'error')
+  }
 }
 
 async function postNewComment() {
-  if (!commentText.value.trim() || !userStore.isLoggedIn) return
+  if (!userStore.isLoggedIn) {
+    uiStore.notify('请先登录后再评论', 'warning')
+    return
+  }
+  if (!commentText.value.trim()) {
+    uiStore.notify('请先填写评论内容', 'warning')
+    return
+  }
+  if (commentPosting.value) return
+  commentPosting.value = true
+  errorMsg.value = ''
   try {
     await postComment({
       content: commentText.value.trim(),
@@ -232,22 +295,46 @@ async function postNewComment() {
       parentID: 0
     })
     commentText.value = ''
-    fetchComments()
-  } catch { /* ignore */ }
+    await fetchComments()
+  } catch (e) {
+    errorMsg.value = e.message || '评论发布失败'
+  } finally {
+    commentPosting.value = false
+  }
 }
 
 async function handleReply({ content, parentID, rootID }) {
+  if (!userStore.isLoggedIn) {
+    uiStore.notify('请先登录后再回复', 'warning')
+    return
+  }
+  commentActionId.value = parentID
+  errorMsg.value = ''
   try {
     await postComment({ content, articleID: Number(route.params.id), parentID, rootID })
-    fetchComments()
-  } catch { /* ignore */ }
+    await fetchComments()
+  } catch (e) {
+    errorMsg.value = e.message || '回复发布失败'
+  } finally {
+    commentActionId.value = null
+  }
 }
 
 async function handleCommentDigg(id) {
-  if (!userStore.isLoggedIn) return
+  if (!userStore.isLoggedIn) {
+    uiStore.notify('请先登录后再点赞评论', 'warning')
+    return
+  }
+  commentActionId.value = id
+  errorMsg.value = ''
   try {
     await diggComment(id)
-  } catch { /* ignore */ }
+    uiStore.notify('评论点赞成功', 'success')
+  } catch (e) {
+    errorMsg.value = e.message || '评论点赞失败'
+  } finally {
+    commentActionId.value = null
+  }
 }
 
 function formatDate(dateStr) {
