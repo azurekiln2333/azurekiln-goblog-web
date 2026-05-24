@@ -99,6 +99,24 @@ npm run build
 
 建置輸出到 `dist/`，不再寫入舊後端的 `static` 目錄。
 
+### 後端介面覆蓋
+
+已封裝並在頁面中使用或保留功能入口的介面：
+
+- 認證與使用者：`POST /user/login`、`POST /user/email`、`POST /user/send_email`、`DELETE /user/logout`、`GET /user/detail`、`GET /user/info/:id`、`GET /user/loginlog`、`PUT /user/resetEmail`、`PUT /user/update`、`PUT /user/admin/update`、`POST /user/token`、`GET /user/list`
+- 關注：`GET /user/follow/list`、`GET /user/follower/list`、`POST /user/follow`、`POST /user/follow/unfollow`
+- 站點：`GET /site/:name`、`GET /site/qq_login`
+- 訊息：`GET /msg/conf`、`POST /msg/conf/update`、`GET /msg/check`、`POST /msg/clear`、`GET /msg`、`DELETE /msg`
+- 文章：`POST /article`、`PUT /article`、`PUT /article/inc`、`GET /article`、`GET /article/search`、`GET /article/:id`、`POST /article/top/:id`、`DELETE /article/top`、`DELETE /article/admingTop`、`GET /article/review`、`POST /article/review/:id`、`POST /article/look`、`POST /article/digg/:id`、`DELETE /article`、`DELETE /article/admin`、`GET /article/history`、`DELETE /article/history`
+- 分類與收藏：`POST /article/category`、`GET /article/category`、`DELETE /article/category`、`POST /article/collect`、`GET /article/collect/folder`、`GET /article/collect/list`、`POST /article/collect/folder`、`PUT /article/collect/folder`、`DELETE /article/collect/folder`
+- 評論：`POST /comment`、`DELETE /comment/:id`、`GET /comment`、`GET /commentChild`、`POST /comment/digg/:id`
+- 圖片：`GET /image`、`POST /image`、`GET /images`、`DELETE /image`
+- 輪播圖：`GET /banner`、`POST /banner`、`PUT /banner/:id`、`DELETE /banner`
+- 友鏈與推廣：`GET /friendLink`、`POST /friendLink`、`PUT /friendLink/:id`、`DELETE /friendLink`、`GET /friendPromotion`、`POST /friendPromotion`、`PUT /friendPromotion/:id`、`DELETE /friendPromotion`
+- 日誌：`GET /logs`、`GET /logs/:id`、`DELETE /logs`
+- 聊天與 AI：`POST /chat/send`、`GET /chat/get`、`GET /chat/session`、`POST /chat`
+- 其他：`GET /captcha`、`GET /heartbeat`
+
 ### 後端限制
 
 - 站點設定更新路由目前未註冊，因此相關頁面只讀。
@@ -138,6 +156,24 @@ npm run build
 ```
 
 Build output goes to `dist/`. The frontend no longer writes directly into the old backend `static` directory.
+
+### Backend API Coverage
+
+The following backend APIs are wrapped and used in pages or exposed through retained feature entry points:
+
+- Authentication and users: `POST /user/login`, `POST /user/email`, `POST /user/send_email`, `DELETE /user/logout`, `GET /user/detail`, `GET /user/info/:id`, `GET /user/loginlog`, `PUT /user/resetEmail`, `PUT /user/update`, `PUT /user/admin/update`, `POST /user/token`, `GET /user/list`
+- Follows: `GET /user/follow/list`, `GET /user/follower/list`, `POST /user/follow`, `POST /user/follow/unfollow`
+- Site: `GET /site/:name`, `GET /site/qq_login`
+- Messages: `GET /msg/conf`, `POST /msg/conf/update`, `GET /msg/check`, `POST /msg/clear`, `GET /msg`, `DELETE /msg`
+- Articles: `POST /article`, `PUT /article`, `PUT /article/inc`, `GET /article`, `GET /article/search`, `GET /article/:id`, `POST /article/top/:id`, `DELETE /article/top`, `DELETE /article/admingTop`, `GET /article/review`, `POST /article/review/:id`, `POST /article/look`, `POST /article/digg/:id`, `DELETE /article`, `DELETE /article/admin`, `GET /article/history`, `DELETE /article/history`
+- Categories and collections: `POST /article/category`, `GET /article/category`, `DELETE /article/category`, `POST /article/collect`, `GET /article/collect/folder`, `GET /article/collect/list`, `POST /article/collect/folder`, `PUT /article/collect/folder`, `DELETE /article/collect/folder`
+- Comments: `POST /comment`, `DELETE /comment/:id`, `GET /comment`, `GET /commentChild`, `POST /comment/digg/:id`
+- Images: `GET /image`, `POST /image`, `GET /images`, `DELETE /image`
+- Banners: `GET /banner`, `POST /banner`, `PUT /banner/:id`, `DELETE /banner`
+- Friend links and promotions: `GET /friendLink`, `POST /friendLink`, `PUT /friendLink/:id`, `DELETE /friendLink`, `GET /friendPromotion`, `POST /friendPromotion`, `PUT /friendPromotion/:id`, `DELETE /friendPromotion`
+- Logs: `GET /logs`, `GET /logs/:id`, `DELETE /logs`
+- Chat and AI: `POST /chat/send`, `GET /chat/get`, `GET /chat/session`, `POST /chat`
+- Other: `GET /captcha`, `GET /heartbeat`
 
 ### Backend Notes
 
