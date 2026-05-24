@@ -19,7 +19,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../GoBlog-StarDreamerCyberNook-main/static',
+    outDir: 'dist',
     emptyOutDir: true
   }
 })
