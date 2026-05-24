@@ -192,15 +192,72 @@
               <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
               <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载文章中</p>
             </div>
-            <div v-for="art in myArticles" :key="art.id" class="p-4 bg-slate-50 rounded-xl flex items-center gap-4 hover:bg-blue-light transition-colors cursor-pointer" @click="$router.push(`/article/${art.id}`)">
-              <div class="flex-1">
-                <h4 class="font-bold text-sm mb-1">{{ art.title }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ formatDate(art.createdAt) }} · {{ art.viewCount || 0 }} 浏览</p>
+            <div v-for="art in myArticles" :key="art.id" class="p-4 bg-slate-50 rounded-xl flex flex-col gap-4 hover:bg-blue-light transition-colors md:flex-row md:items-center">
+              <div class="min-w-0 flex-1 cursor-pointer" @click="$router.push(`/article/${art.id}`)">
+                <div class="mb-1 flex flex-wrap items-center gap-2">
+                  <h4 class="font-bold text-sm">{{ art.title }}</h4>
+                  <span v-if="art.userTop" class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-primary">已置顶</span>
+                </div>
+                <p class="text-xs text-on-surface-variant">{{ formatDate(art.createdAt) }} · {{ art.lookCount || art.viewCount || 0 }} 浏览</p>
               </div>
               <span
-                class="text-[10px] font-bold px-2 py-1 rounded-full"
+                class="self-start text-[10px] font-bold px-2 py-1 rounded-full md:self-auto"
                 :class="statusClass(art.status)"
               >{{ statusText(art.status) }}</span>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  class="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-[10px] font-bold text-slate-600 ring-1 ring-slate-200 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  @click="$router.push(`/article/${art.id}`)"
+                >
+                  <span class="material-symbols-outlined text-sm">visibility</span>
+                  查看
+                </button>
+                <button
+                  class="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-[10px] font-bold text-slate-600 ring-1 ring-slate-200 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  @click="editArticle(art)"
+                >
+                  <span class="material-symbols-outlined text-sm">edit</span>
+                  编辑
+                </button>
+                <button
+                  class="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-[10px] font-bold text-slate-600 ring-1 ring-slate-200 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="articleActionKey === `top-${art.id}`"
+                  @click="toggleMyArticleTop(art)"
+                >
+                  <span v-if="articleActionKey === `top-${art.id}`" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  <span v-else class="material-symbols-outlined text-sm">{{ art.userTop ? 'vertical_align_bottom' : 'vertical_align_top' }}</span>
+                  {{ art.userTop ? '取消置顶' : '置顶' }}
+                </button>
+                <button
+                  v-if="!isConfirmingDelete(art.id)"
+                  class="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-[10px] font-bold text-red-600 ring-1 ring-red-100 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="articleActionKey === `delete-${art.id}`"
+                  @click="requestDeleteArticle(art)"
+                >
+                  <span class="material-symbols-outlined text-sm">delete</span>
+                  删除
+                </button>
+                <template v-else>
+                  <button
+                    class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-2 text-[10px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="articleActionKey === `delete-${art.id}`"
+                    @click="deleteMyArticle(art)"
+                  >
+                    <span v-if="articleActionKey === `delete-${art.id}`" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                    确认删除
+                  </button>
+                  <button
+                    class="rounded-lg px-3 py-2 text-[10px] font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                    :disabled="articleActionKey === `delete-${art.id}`"
+                    @click="articleActionKey = ''"
+                  >
+                    取消
+                  </button>
+                </template>
+              </div>
+            </div>
+            <div v-if="!articlesLoading && myArticles.length === 0" class="py-16 text-center text-sm text-slate-400">
+              暂无文章
             </div>
           </div>
 
@@ -553,7 +610,10 @@ import {
   deleteCollectFolder,
   getArticleList,
   getArticleHistory,
-  deleteArticleHistory
+  deleteArticleHistory,
+  deleteArticle,
+  topArticle,
+  cancelTopArticle
 } from '@/api/article'
 import { getChatSessions } from '@/api/chat'
 import AIChatWidget from '@/components/common/AIChatWidget.vue'
@@ -611,6 +671,7 @@ const errorMsg = ref('')
 const collectionsLoading = ref(false)
 const folderArticlesLoading = ref(false)
 const articlesLoading = ref(false)
+const articleActionKey = ref('')
 const historyLoading = ref(false)
 const historyActionKey = ref('')
 const sessionsLoading = ref(false)
@@ -842,6 +903,51 @@ async function fetchMyArticles() {
     errorMsg.value = e.message || '文章加载失败'
   } finally {
     articlesLoading.value = false
+  }
+}
+
+function editArticle(article) {
+  router.push(`/user/editor/${article.id}`)
+}
+
+function isConfirmingDelete(id) {
+  return articleActionKey.value === `confirm-delete-${id}` || articleActionKey.value === `delete-${id}`
+}
+
+function requestDeleteArticle(article) {
+  articleActionKey.value = `confirm-delete-${article.id}`
+  errorMsg.value = ''
+}
+
+async function toggleMyArticleTop(article) {
+  articleActionKey.value = `top-${article.id}`
+  errorMsg.value = ''
+  try {
+    if (article.userTop) {
+      await cancelTopArticle({ articleID: article.id })
+      article.userTop = false
+    } else {
+      await topArticle(article.id, { articleID: article.id })
+      article.userTop = true
+    }
+    await fetchMyArticles()
+  } catch (e) {
+    errorMsg.value = e.message || '文章置顶操作失败'
+  } finally {
+    articleActionKey.value = ''
+  }
+}
+
+async function deleteMyArticle(article) {
+  articleActionKey.value = `delete-${article.id}`
+  errorMsg.value = ''
+  try {
+    await deleteArticle({ IDList: [article.id] })
+    await fetchMyArticles()
+  } catch (e) {
+    errorMsg.value = e.message || '文章删除失败'
+  } finally {
+    articleActionKey.value = ''
   }
 }
 
