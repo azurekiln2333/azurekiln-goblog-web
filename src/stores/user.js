@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { login as loginApi, registerByEmail as registerApi, getUserDetail, logout as logoutApi, refreshToken as refreshTokenApi } from '@/api/user'
+import { useUiStore } from '@/stores/ui'
 
 export const useUserStore = defineStore('user', () => {
   const accessToken = ref(localStorage.getItem('accessToken') || '')
@@ -30,11 +31,13 @@ export const useUserStore = defineStore('user', () => {
 
   async function fetchUserInfo() {
     if (!accessToken.value) return
+    const uiStore = useUiStore()
     try {
       const res = await getUserDetail()
       userInfo.value = res.data
-    } catch {
+    } catch (e) {
       userInfo.value = null
+      uiStore.notify(e.message || '用户信息加载失败', 'error')
     }
   }
 
@@ -46,9 +49,12 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function logout() {
+    const uiStore = useUiStore()
     try {
       await logoutApi()
-    } catch { /* ignore */ }
+    } catch (e) {
+      uiStore.notify(e.message || '服务端退出失败，已清理本地登录状态', 'warning')
+    }
     accessToken.value = ''
     refreshToken.value = ''
     userInfo.value = null
