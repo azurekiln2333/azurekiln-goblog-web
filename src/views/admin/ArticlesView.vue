@@ -13,6 +13,10 @@
       </div>
     </header>
 
+    <div v-if="errorMsg" class="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+      {{ errorMsg }}
+    </div>
+
     <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 border-b border-slate-100">
@@ -25,6 +29,12 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-50">
+          <tr v-if="loading">
+            <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+              <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+              <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载文章中</p>
+            </td>
+          </tr>
           <tr v-for="article in articles" :key="article.id" class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4 font-medium">{{ article.title }}</td>
             <td class="px-6 py-4 text-slate-500">{{ article.authorNickName || '-' }}</td>
@@ -34,11 +44,37 @@
             <td class="px-6 py-4 text-slate-500">{{ article.viewCount || 0 }}</td>
             <td class="px-6 py-4">
               <div class="flex gap-2">
-                <button v-if="article.status === 1" class="text-[10px] font-bold text-green-600 hover:underline" @click="reviewArticle(article.id, 2)">通过</button>
-                <button v-if="article.status === 1" class="text-[10px] font-bold text-red-600 hover:underline" @click="reviewArticle(article.id, 0)">拒绝</button>
-                <button class="text-[10px] font-bold text-red-600 hover:underline" @click="deleteArticleById(article.id)">删除</button>
+                <button
+                  v-if="article.status === 1"
+                  class="inline-flex items-center gap-1 text-[10px] font-bold text-green-600 hover:underline disabled:opacity-50"
+                  :disabled="actionKey === `review-${article.id}`"
+                  @click="reviewArticle(article.id, 2)"
+                >
+                  <span v-if="actionKey === `review-${article.id}`" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  通过
+                </button>
+                <button
+                  v-if="article.status === 1"
+                  class="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 hover:underline disabled:opacity-50"
+                  :disabled="actionKey === `reject-${article.id}`"
+                  @click="reviewArticle(article.id, 0)"
+                >
+                  <span v-if="actionKey === `reject-${article.id}`" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  拒绝
+                </button>
+                <button
+                  class="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 hover:underline disabled:opacity-50"
+                  :disabled="actionKey === `delete-${article.id}`"
+                  @click="deleteArticleById(article.id)"
+                >
+                  <span v-if="actionKey === `delete-${article.id}`" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  删除
+                </button>
               </div>
             </td>
+          </tr>
+          <tr v-if="!loading && articles.length === 0">
+            <td colspan="5" class="px-6 py-12 text-center text-sm text-slate-400">暂无文章</td>
           </tr>
         </tbody>
       </table>
@@ -67,32 +103,53 @@ const page = ref(1)
 const limit = ref(20)
 const total = ref(0)
 const statusFilter = ref('')
+const loading = ref(false)
+const errorMsg = ref('')
+const actionKey = ref('')
 
 const totalPages = computed(() => Math.ceil(total.value / limit.value))
 
 async function fetchArticles() {
+  loading.value = true
+  errorMsg.value = ''
   try {
     const params = { type: 'admin', page: page.value, limit: limit.value }
     if (statusFilter.value) params.status = Number(statusFilter.value)
     const res = await getArticleList(params)
     articles.value = res.data?.list || []
     total.value = res.data?.count || 0
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '文章列表加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 async function reviewArticle(id, status) {
+  actionKey.value = `${status === 2 ? 'review' : 'reject'}-${id}`
+  errorMsg.value = ''
   try {
     await reviewArticleApi(id, { articleID: id, status })
-    fetchArticles()
-  } catch { /* ignore */ }
+    await fetchArticles()
+  } catch (e) {
+    errorMsg.value = e.message || '文章审核失败'
+  } finally {
+    actionKey.value = ''
+  }
 }
 
 async function deleteArticleById(id) {
   if (!confirm('确认删除？')) return
+  actionKey.value = `delete-${id}`
+  errorMsg.value = ''
   try {
     await adminDeleteArticle({ IDList: [id] })
-    fetchArticles()
-  } catch { /* ignore */ }
+    await fetchArticles()
+  } catch (e) {
+    errorMsg.value = e.message || '文章删除失败'
+  } finally {
+    actionKey.value = ''
+  }
 }
 
 function statusText(status) {

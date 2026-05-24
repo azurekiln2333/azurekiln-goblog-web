@@ -5,7 +5,14 @@
         <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
           <div class="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
             <h3 class="font-bold text-sm">消息中心</h3>
-            <button class="text-xs font-bold text-primary hover:underline" @click="markAllRead">全部已读</button>
+            <button
+              class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-50"
+              :disabled="actionLoading === 'read'"
+              @click="markAllRead"
+            >
+              <span v-if="actionLoading === 'read'" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              全部已读
+            </button>
           </div>
           <div class="divide-y divide-slate-50">
             <button
@@ -27,9 +34,24 @@
         <div class="bg-white rounded-xl shadow-sm border border-slate-100">
           <div class="p-4 border-b border-slate-100 flex justify-between items-center">
             <h3 class="font-bold text-sm">{{ currentTabLabel }}</h3>
-            <button v-if="messages.length > 0" class="text-xs font-bold text-red-500 hover:underline" @click="deleteSelected">删除选中</button>
+            <button
+              v-if="messages.length > 0"
+              class="inline-flex items-center gap-1 text-xs font-bold text-red-500 hover:underline disabled:opacity-50"
+              :disabled="selectedIds.length === 0 || actionLoading === 'delete'"
+              @click="deleteSelected"
+            >
+              <span v-if="actionLoading === 'delete'" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              删除选中
+            </button>
           </div>
-          <div class="divide-y divide-slate-50">
+          <div v-if="errorMsg" class="m-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {{ errorMsg }}
+          </div>
+          <div v-if="loading" class="p-12 text-center text-slate-400">
+            <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+            <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载消息中</p>
+          </div>
+          <div v-else class="divide-y divide-slate-50">
             <div
               v-for="msg in messages"
               :key="msg.id"
@@ -45,7 +67,7 @@
               </div>
             </div>
           </div>
-          <div v-if="messages.length === 0" class="p-12 text-center text-slate-400 text-sm">
+          <div v-if="!loading && messages.length === 0" class="p-12 text-center text-slate-400 text-sm">
             暂无消息
           </div>
         </div>
@@ -62,6 +84,9 @@ const activeType = ref(0)
 const messages = ref([])
 const unreadCounts = ref({})
 const selectedIds = ref([])
+const loading = ref(false)
+const errorMsg = ref('')
+const actionLoading = ref('')
 
 const messageTabs = [
   { type: 0, label: '评论通知', icon: 'chat_bubble' },
@@ -77,17 +102,25 @@ const currentTabLabel = computed(() => {
 })
 
 async function fetchMessages() {
+  loading.value = true
+  errorMsg.value = ''
   try {
     const res = await getMessageList({ type: activeType.value, page: 1, limit: 50 })
     messages.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '消息加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 async function fetchUnread() {
   try {
     const res = await checkUnread()
     unreadCounts.value = res.data || {}
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '未读数量加载失败'
+  }
 }
 
 function switchType(type) {
@@ -97,6 +130,8 @@ function switchType(type) {
 }
 
 async function markAllRead() {
+  actionLoading.value = 'read'
+  errorMsg.value = ''
   try {
     const tab = messageTabs.find(t => t.type === activeType.value)
     const body = {}
@@ -105,19 +140,29 @@ async function markAllRead() {
     if (activeType.value === 4) body.privateMessage = true
     if (activeType.value === 5) body.systemMessage = true
     await clearMessages(body)
-    fetchMessages()
-    fetchUnread()
-  } catch { /* ignore */ }
+    await fetchMessages()
+    await fetchUnread()
+  } catch (e) {
+    errorMsg.value = e.message || '全部已读操作失败'
+  } finally {
+    actionLoading.value = ''
+  }
 }
 
 async function deleteSelected() {
   if (selectedIds.value.length === 0) return
+  actionLoading.value = 'delete'
+  errorMsg.value = ''
   try {
     await deleteMessages({ messageID: selectedIds.value })
     selectedIds.value = []
-    fetchMessages()
-    fetchUnread()
-  } catch { /* ignore */ }
+    await fetchMessages()
+    await fetchUnread()
+  } catch (e) {
+    errorMsg.value = e.message || '消息删除失败'
+  } finally {
+    actionLoading.value = ''
+  }
 }
 
 function formatDate(dateStr) {

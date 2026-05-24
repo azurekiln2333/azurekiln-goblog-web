@@ -10,7 +10,11 @@
                 <span class="text-2xl font-bold text-blue-600">{{ (userStore.userInfo?.nickName || '?')[0] }}</span>
               </div>
             </div>
-            <button class="absolute bottom-2 right-0 bg-primary text-white p-1.5 rounded-full hover:bg-blue-700 transition-colors">
+            <button
+              class="absolute bottom-2 right-0 bg-slate-300 text-white p-1.5 rounded-full cursor-not-allowed"
+              disabled
+              title="头像编辑接口暂未开放"
+            >
               <span class="material-symbols-outlined text-sm">edit</span>
             </button>
           </div>
@@ -44,7 +48,14 @@
           <h3 class="font-bold text-sm">直接消息</h3>
           <span v-if="totalUnread > 0" class="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ totalUnread }} 条新消息</span>
         </div>
-        <div class="divide-y divide-slate-50">
+        <div v-if="sessionsLoading" class="p-6 text-center text-slate-400">
+          <span class="material-symbols-outlined animate-spin">progress_activity</span>
+          <p class="mt-2 text-[10px] font-bold uppercase tracking-widest">加载会话中</p>
+        </div>
+        <div v-else-if="sessions.length === 0" class="p-6 text-center text-xs text-slate-400">
+          暂无直接消息
+        </div>
+        <div v-else class="divide-y divide-slate-50">
           <button
             v-for="session in sessions"
             :key="session.userID"
@@ -92,8 +103,16 @@
           </button>
         </div>
 
+        <div v-if="errorMsg" class="mx-6 mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {{ errorMsg }}
+        </div>
+
         <div class="p-6 flex-1">
           <div v-if="activeTab === 'collections'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-if="collectionsLoading" class="col-span-full py-16 text-center text-slate-400">
+              <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+              <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载收藏夹中</p>
+            </div>
             <div
               v-for="folder in collectFolders"
               :key="folder.id"
@@ -107,13 +126,21 @@
               <h4 class="font-bold text-base mb-1">{{ folder.title }}</h4>
               <p class="text-xs text-on-surface-variant leading-relaxed">{{ folder.abstract || '暂无简介' }}</p>
             </div>
-            <div class="p-5 bg-slate-50 rounded-xl hover:bg-blue-light transition-colors cursor-pointer group border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center" @click="showCreateFolder = true">
+            <button
+              type="button"
+              class="p-5 bg-slate-50 rounded-xl hover:bg-blue-light transition-colors cursor-pointer group border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center"
+              @click="showCreateFolder = true"
+            >
               <span class="material-symbols-outlined text-slate-400 mb-2">create_new_folder</span>
               <p class="text-xs font-bold text-slate-500">创建新收藏夹</p>
-            </div>
+            </button>
           </div>
 
           <div v-if="activeTab === 'articles'" class="space-y-4">
+            <div v-if="articlesLoading" class="py-16 text-center text-slate-400">
+              <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+              <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载文章中</p>
+            </div>
             <div v-for="art in myArticles" :key="art.id" class="p-4 bg-slate-50 rounded-xl flex items-center gap-4 hover:bg-blue-light transition-colors cursor-pointer" @click="$router.push(`/article/${art.id}`)">
               <div class="flex-1">
                 <h4 class="font-bold text-sm mb-1">{{ art.title }}</h4>
@@ -127,6 +154,10 @@
           </div>
 
           <div v-if="activeTab === 'history'" class="space-y-4">
+            <div v-if="historyLoading" class="py-16 text-center text-slate-400">
+              <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+              <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载浏览记录中</p>
+            </div>
             <div v-for="h in historyList" :key="h.id" class="p-4 bg-slate-50 rounded-xl flex items-center gap-4 hover:bg-blue-light transition-colors cursor-pointer" @click="$router.push(`/article/${h.articleID}`)">
               <div class="flex-1">
                 <h4 class="font-bold text-sm mb-1">{{ h.articleTitle || `文章 #${h.articleID}` }}</h4>
@@ -141,6 +172,64 @@
     <aside class="col-span-12 lg:col-span-3">
       <AIChatWidget />
     </aside>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showCreateFolder" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm">
+          <form class="w-full max-w-md rounded-lg bg-surface-container-lowest p-6 shadow-[0_10px_30px_rgba(25,28,30,0.10)]" @submit.prevent="createFolder">
+            <div class="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h3 class="text-lg font-extrabold text-on-surface">创建收藏夹</h3>
+                <p class="mt-1 text-xs text-on-surface-variant">用于整理收藏文章，可稍后继续编辑。</p>
+              </div>
+              <button type="button" class="material-symbols-outlined text-slate-400 hover:text-slate-700" @click="closeCreateFolder()">close</button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">名称</label>
+                <input
+                  v-model="folderForm.title"
+                  class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                  maxlength="32"
+                  placeholder="例如：前端资料"
+                  required
+                />
+              </div>
+              <div>
+                <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">简介</label>
+                <textarea
+                  v-model="folderForm.abstract"
+                  class="mt-1 w-full resize-none rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                  rows="3"
+                  placeholder="简单描述这个收藏夹"
+                ></textarea>
+              </div>
+              <div>
+                <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">封面 URL</label>
+                <input
+                  v-model="folderForm.cover"
+                  class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+
+            <div v-if="folderError" class="mt-4 rounded-lg bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+              {{ folderError }}
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+              <button type="button" class="px-5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg" :disabled="folderSaving" @click="closeCreateFolder()">取消</button>
+              <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" :disabled="folderSaving">
+                <span v-if="folderSaving" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                {{ folderSaving ? '创建中...' : '创建' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Transition>
+    </Teleport>
   </main>
 </template>
 
@@ -149,7 +238,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMessageStore } from '@/stores/message'
-import { getCollectFolders, getArticleList, getArticleHistory } from '@/api/article'
+import { createCollectFolder, getCollectFolders, getArticleList, getArticleHistory } from '@/api/article'
 import { getChatSessions } from '@/api/chat'
 import AIChatWidget from '@/components/common/AIChatWidget.vue'
 
@@ -163,6 +252,14 @@ const myArticles = ref([])
 const historyList = ref([])
 const sessions = ref([])
 const showCreateFolder = ref(false)
+const folderForm = ref({ title: '', abstract: '', cover: '' })
+const folderSaving = ref(false)
+const folderError = ref('')
+const errorMsg = ref('')
+const collectionsLoading = ref(false)
+const articlesLoading = ref(false)
+const historyLoading = ref(false)
+const sessionsLoading = ref(false)
 
 const totalUnread = computed(() => messageStore.getTotalUnread())
 
@@ -178,31 +275,84 @@ onMounted(async () => {
 })
 
 async function fetchCollectFolders() {
+  collectionsLoading.value = true
+  errorMsg.value = ''
   try {
     const res = await getCollectFolders({ id: userStore.userInfo?.id, page: 1, limit: 50 })
     collectFolders.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '收藏夹加载失败'
+  } finally {
+    collectionsLoading.value = false
+  }
 }
 
 async function fetchMyArticles() {
+  articlesLoading.value = true
+  errorMsg.value = ''
   try {
     const res = await getArticleList({ type: 'self', page: 1, limit: 50 })
     myArticles.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '文章加载失败'
+  } finally {
+    articlesLoading.value = false
+  }
 }
 
 async function fetchHistory() {
+  historyLoading.value = true
+  errorMsg.value = ''
   try {
     const res = await getArticleHistory({ type: 'user', page: 1, limit: 50 })
     historyList.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '浏览记录加载失败'
+  } finally {
+    historyLoading.value = false
+  }
 }
 
 async function fetchSessions() {
+  sessionsLoading.value = true
   try {
     const res = await getChatSessions({ page: 1, limit: 10 })
     sessions.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '会话列表加载失败'
+  } finally {
+    sessionsLoading.value = false
+  }
+}
+
+function closeCreateFolder(force = false) {
+  if (folderSaving.value && !force) return
+  showCreateFolder.value = false
+  folderError.value = ''
+  folderForm.value = { title: '', abstract: '', cover: '' }
+}
+
+async function createFolder() {
+  folderError.value = ''
+  if (!folderForm.value.title.trim()) {
+    folderError.value = '请填写收藏夹名称'
+    return
+  }
+
+  folderSaving.value = true
+  try {
+    await createCollectFolder({
+      title: folderForm.value.title.trim(),
+      abstract: folderForm.value.abstract.trim(),
+      cover: folderForm.value.cover.trim()
+    })
+    closeCreateFolder(true)
+    await fetchCollectFolders()
+  } catch (e) {
+    folderError.value = e.message || '收藏夹创建失败'
+  } finally {
+    folderSaving.value = false
+  }
 }
 
 function openFolder(folder) {
