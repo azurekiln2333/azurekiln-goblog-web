@@ -20,6 +20,24 @@
             <span>{{ userInfo.followCount || 0 }} 关注</span>
             <span>{{ userInfo.fansCount || 0 }} 粉丝</span>
           </div>
+          <div class="mt-6 flex justify-center gap-3">
+            <button
+              class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="followLoading || isSelfProfile"
+              @click="toggleFollow"
+            >
+              <span v-if="followLoading" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              {{ isFollowing ? '取消关注' : '关注' }}
+            </button>
+            <button
+              class="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-2 text-xs font-bold text-primary disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="isSelfProfile"
+              @click="openMessage"
+            >
+              <span class="material-symbols-outlined text-sm">mail</span>
+              私信
+            </button>
+          </div>
           </template>
         </div>
       </aside>
@@ -72,13 +90,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getUserInfo } from '@/api/user'
 import { getArticleList, getCollectFolders } from '@/api/article'
+import { followUser, unfollowUser, getFollowList } from '@/api/follow'
+import { useUserStore } from '@/stores/user'
+import { useUiStore } from '@/stores/ui'
 import ArticleCard from '@/components/home/ArticleCard.vue'
 
 const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+const uiStore = useUiStore()
 const userInfo = ref({})
 const articles = ref([])
 const folders = ref([])
@@ -87,6 +111,11 @@ const loadingUser = ref(false)
 const loadingArticles = ref(false)
 const loadingFolders = ref(false)
 const errorMsg = ref('')
+const followLoading = ref(false)
+const isFollowing = ref(false)
+
+const profileUserId = computed(() => Number(route.params.id || 0))
+const isSelfProfile = computed(() => userStore.userInfo?.id === profileUserId.value)
 
 async function fetchData() {
   const userId = route.params.id
@@ -119,6 +148,56 @@ async function fetchData() {
   } finally {
     loadingFolders.value = false
   }
+  await fetchFollowState(userId)
+}
+
+async function fetchFollowState(userId) {
+  if (!userStore.isLoggedIn || isSelfProfile.value) {
+    isFollowing.value = false
+    return
+  }
+  try {
+    const res = await getFollowList({ page: 1, limit: 200 })
+    const list = res.data?.list || []
+    isFollowing.value = list.some(item => Number(item.focusUserID) === Number(userId))
+  } catch {
+    isFollowing.value = false
+  }
+}
+
+async function toggleFollow() {
+  if (!userStore.isLoggedIn) {
+    uiStore.notify('请先登录后再关注用户', 'warning')
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (isSelfProfile.value || followLoading.value) return
+  followLoading.value = true
+  errorMsg.value = ''
+  try {
+    const body = { focusUserID: profileUserId.value }
+    if (isFollowing.value) {
+      await unfollowUser(body)
+      isFollowing.value = false
+    } else {
+      await followUser(body)
+      isFollowing.value = true
+    }
+  } catch (e) {
+    errorMsg.value = e.message || '关注操作失败'
+  } finally {
+    followLoading.value = false
+  }
+}
+
+function openMessage() {
+  if (!userStore.isLoggedIn) {
+    uiStore.notify('请先登录后再发送私信', 'warning')
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (isSelfProfile.value) return
+  router.push({ name: 'Messages', query: { userId: profileUserId.value } })
 }
 
 watch(() => route.params.id, fetchData)
