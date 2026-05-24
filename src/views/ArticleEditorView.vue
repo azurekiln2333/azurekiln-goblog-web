@@ -78,24 +78,33 @@
         </div>
       </div>
 
+      <div v-if="errorMsg" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+        {{ errorMsg }}
+      </div>
+
       <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
         <button
           class="px-6 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors"
+          :disabled="submitting"
           @click="$router.back()"
         >
           取消
         </button>
         <button
-          class="px-6 py-3 text-sm font-bold bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors"
+          class="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="submitting"
           @click="handleSubmit(0)"
         >
-          保存草稿
+          <span v-if="submittingStatus === 0" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          {{ submittingStatus === 0 ? '保存中...' : '保存草稿' }}
         </button>
         <button
-          class="px-6 py-3 text-sm font-bold bg-primary text-white rounded-xl shadow-lg shadow-blue-500/20 hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold bg-primary text-white rounded-xl shadow-lg shadow-blue-500/20 hover:opacity-90 transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="submitting"
           @click="handleSubmit(1)"
         >
-          提交审核
+          <span v-if="submittingStatus === 1" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          {{ submittingStatus === 1 ? '提交中...' : '提交审核' }}
         </button>
       </div>
     </div>
@@ -107,9 +116,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { createArticle, updateArticle, getArticleDetail, getCategoryList } from '@/api/article'
+import { useUiStore } from '@/stores/ui'
 
 const route = useRoute()
 const router = useRouter()
+const uiStore = useUiStore()
 
 const isEdit = computed(() => !!route.params.id)
 const form = ref({
@@ -126,6 +137,9 @@ const form = ref({
 const tagInput = ref('')
 const categories = ref([])
 const showPreview = ref(false)
+const submitting = ref(false)
+const submittingStatus = ref(null)
+const errorMsg = ref('')
 
 const renderedContent = computed(() => {
   if (!form.value.content) return ''
@@ -136,7 +150,9 @@ async function fetchCategories() {
   try {
     const res = await getCategoryList({ type: 'self', page: 1, limit: 100 })
     categories.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '分类加载失败'
+  }
 }
 
 async function fetchArticle() {
@@ -156,10 +172,27 @@ async function fetchArticle() {
       status: art.status || 0
     }
     tagInput.value = (art.tagList || []).join(', ')
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '文章加载失败'
+  }
 }
 
 async function handleSubmit(status) {
+  if (submitting.value) return
+  errorMsg.value = ''
+  if (!form.value.title.trim()) {
+    errorMsg.value = '请先填写文章标题'
+    uiStore.notify(errorMsg.value, 'warning')
+    return
+  }
+  if (!form.value.content.trim()) {
+    errorMsg.value = '请先填写文章正文'
+    uiStore.notify(errorMsg.value, 'warning')
+    return
+  }
+
+  submitting.value = true
+  submittingStatus.value = status
   form.value.status = status
   form.value.tagList = tagInput.value.split(',').map(t => t.trim()).filter(Boolean)
 
@@ -170,7 +203,12 @@ async function handleSubmit(status) {
       await createArticle(form.value)
     }
     router.push('/user/center')
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '文章保存失败'
+  } finally {
+    submitting.value = false
+    submittingStatus.value = null
+  }
 }
 
 onMounted(() => {

@@ -8,6 +8,8 @@ export const createArticle = (data) => request.post('/article', data)
 
 export const updateArticle = (data) => request.put('/article', data)
 
+export const updateArticleIncrement = (data) => request.put('/article/inc', data)
+
 export const deleteArticle = (data) => request.delete('/article', { data })
 
 export const adminDeleteArticle = (data) => request.delete('/article/admin', { data })

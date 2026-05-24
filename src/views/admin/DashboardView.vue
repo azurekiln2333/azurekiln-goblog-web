@@ -57,8 +57,15 @@
               </div>
               <div class="flex justify-end gap-3 pt-4">
                 <button class="px-6 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors" @click="loadSiteConfig">舍弃更改</button>
-                <button class="px-6 py-3 text-sm font-bold bg-primary text-white rounded-xl shadow-lg shadow-blue-500/20 hover:opacity-90 transition-opacity" @click="saveSiteConfig">保存更改</button>
+                <button
+                  class="px-6 py-3 text-sm font-bold bg-slate-200 text-slate-500 rounded-xl cursor-not-allowed"
+                  disabled
+                  title="New 后端未注册站点配置更新路由"
+                >
+                  后端未开放保存
+                </button>
               </div>
+              <p class="text-xs font-medium text-amber-700">当前后端只暴露站点配置读取接口，保存功能等待后端路由开放后再启用。</p>
             </div>
           </div>
         </section>
@@ -85,7 +92,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getSiteConfig, updateSiteConfig } from '@/api/site'
+import { getSiteConfig } from '@/api/site'
 import { getLogList } from '@/api/log'
 import { getArticleList } from '@/api/article'
 
@@ -97,13 +104,6 @@ async function loadSiteConfig() {
   try {
     const res = await getSiteConfig('site')
     siteConfig.value = res.data || {}
-  } catch { /* ignore */ }
-}
-
-async function saveSiteConfig() {
-  try {
-    await updateSiteConfig('site', siteConfig.value)
-    alert('保存成功')
   } catch { /* ignore */ }
 }
 
