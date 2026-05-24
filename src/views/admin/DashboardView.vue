@@ -10,6 +10,10 @@
       </div>
     </header>
     <div class="p-8 space-y-12 max-w-7xl mx-auto">
+      <div v-if="errorMsg" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+        {{ errorMsg }}
+      </div>
+
       <section>
         <div class="flex justify-between items-end mb-6">
           <div>
@@ -48,15 +52,18 @@
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
                   <label class="text-[10px] font-label uppercase tracking-widest text-slate-500 px-1">站点名称</label>
-                  <input v-model="siteConfig.name" class="w-full bg-white border-none ring-1 ring-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:ring-2" type="text" />
+                  <input v-model="siteConfig.name" class="w-full bg-white border-none ring-1 ring-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:ring-2" type="text" readonly />
                 </div>
                 <div class="space-y-2">
                   <label class="text-[10px] font-label uppercase tracking-widest text-slate-500 px-1">站点副标题</label>
-                  <input v-model="siteConfig.subtitle" class="w-full bg-white border-none ring-1 ring-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:ring-2" type="text" />
+                  <input v-model="siteConfig.subtitle" class="w-full bg-white border-none ring-1 ring-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-primary focus:ring-2" type="text" readonly />
                 </div>
               </div>
               <div class="flex justify-end gap-3 pt-4">
-                <button class="px-6 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors" @click="loadSiteConfig">舍弃更改</button>
+                <button class="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50" :disabled="siteLoading" @click="loadSiteConfig">
+                  <span v-if="siteLoading" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                  {{ siteLoading ? '刷新中...' : '刷新配置' }}
+                </button>
                 <button
                   class="px-6 py-3 text-sm font-bold bg-slate-200 text-slate-500 rounded-xl cursor-not-allowed"
                   disabled
@@ -73,9 +80,16 @@
         <section class="space-y-6">
           <div class="flex justify-between items-center">
             <h3 class="text-xl font-bold tracking-tight text-slate-900">系统日志</h3>
-            <button class="text-xs font-bold text-primary px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors" @click="fetchLogs">刷新</button>
+            <button class="inline-flex items-center gap-1 text-xs font-bold text-primary px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50" :disabled="logsLoading" @click="fetchLogs">
+              <span v-if="logsLoading" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              刷新
+            </button>
           </div>
           <div class="bg-slate-50 rounded-3xl p-2 space-y-2 border border-slate-100">
+            <div v-if="logsLoading" class="p-8 text-center text-slate-400">
+              <span class="material-symbols-outlined animate-spin text-2xl">progress_activity</span>
+              <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载日志中</p>
+            </div>
             <div v-for="log in logs" :key="log.id" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-primary/20 transition-all">
               <div class="flex justify-between items-start mb-2">
                 <span class="text-[10px] font-label font-bold text-primary bg-blue-50 px-2 py-0.5 rounded">ID: {{ log.id }}</span>
@@ -83,6 +97,7 @@
               </div>
               <p class="text-xs font-medium text-slate-700">{{ log.content || log.serviceName }}</p>
             </div>
+            <div v-if="!logsLoading && logs.length === 0" class="p-8 text-center text-sm text-slate-400">暂无日志</div>
           </div>
         </section>
       </div>
@@ -99,26 +114,48 @@ import { getArticleList } from '@/api/article'
 const stats = ref({})
 const siteConfig = ref({})
 const logs = ref([])
+const errorMsg = ref('')
+const siteLoading = ref(false)
+const logsLoading = ref(false)
+const statsLoading = ref(false)
 
 async function loadSiteConfig() {
+  siteLoading.value = true
+  errorMsg.value = ''
   try {
     const res = await getSiteConfig('site')
     siteConfig.value = res.data || {}
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '站点配置加载失败'
+  } finally {
+    siteLoading.value = false
+  }
 }
 
 async function fetchLogs() {
+  logsLoading.value = true
+  errorMsg.value = ''
   try {
     const res = await getLogList({ page: 1, limit: 5 })
     logs.value = res.data?.list || []
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '系统日志加载失败'
+  } finally {
+    logsLoading.value = false
+  }
 }
 
 async function fetchStats() {
+  statsLoading.value = true
+  errorMsg.value = ''
   try {
     const res = await getArticleList({ type: 'admin', page: 1, limit: 1 })
     stats.value.articleCount = res.data?.count || 0
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '概览指标加载失败'
+  } finally {
+    statsLoading.value = false
+  }
 }
 
 function timeAgo(dateStr) {

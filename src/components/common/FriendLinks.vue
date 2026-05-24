@@ -2,6 +2,8 @@
   <div class="px-6">
     <h3 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">合作伙伴</h3>
     <div v-if="loading" class="text-xs text-slate-400">加载中...</div>
+    <div v-else-if="errorMsg" class="text-xs font-medium text-red-600">{{ errorMsg }}</div>
+    <div v-else-if="links.length === 0" class="text-xs text-slate-400">暂无友链</div>
     <ul v-else class="space-y-3">
       <li v-for="link in links" :key="link.id">
         <a
@@ -24,12 +26,16 @@ import { getFriendLinks } from '@/api/friend'
 
 const links = ref([])
 const loading = ref(true)
+const errorMsg = ref('')
 
 onMounted(async () => {
   try {
     const res = await getFriendLinks()
     links.value = res.data?.list || []
-  } catch { /* ignore */ }
-  loading.value = false
+  } catch (e) {
+    errorMsg.value = e.message || '友链加载失败'
+  } finally {
+    loading.value = false
+  }
 })
 </script>

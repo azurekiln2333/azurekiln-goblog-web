@@ -2,6 +2,7 @@
   <div class="bg-blue-50/50 p-6 rounded-xl border border-blue-100">
     <h3 class="text-xs font-bold uppercase tracking-widest text-blue-800 mb-4">文章分类</h3>
     <div v-if="loading" class="text-xs text-slate-400">加载中...</div>
+    <div v-else-if="errorMsg" class="text-xs font-medium text-red-600">{{ errorMsg }}</div>
     <div v-else-if="categories.length === 0" class="text-xs text-slate-400">暂无分类</div>
     <div v-else class="flex flex-wrap gap-2">
       <span
@@ -26,12 +27,16 @@ defineEmits(['select'])
 
 const categories = ref([])
 const loading = ref(true)
+const errorMsg = ref('')
 
 onMounted(async () => {
   try {
     const res = await getCategoryList({ type: 'other', page: 1, limit: 50 })
     categories.value = res.data?.list || []
-  } catch { /* ignore */ }
-  loading.value = false
+  } catch (e) {
+    errorMsg.value = e.message || '分类加载失败'
+  } finally {
+    loading.value = false
+  }
 })
 </script>
