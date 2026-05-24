@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useUserStore } from '@/stores/user'
+import { useUiStore } from '@/stores/ui'
 
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -11,6 +12,10 @@ const request = axios.create({
 
 request.interceptors.request.use((config) => {
   const userStore = useUserStore()
+  const uiStore = useUiStore()
+  if (config.showLoading !== false) {
+    uiStore.startLoading()
+  }
   if (userStore.accessToken) {
     config.headers.token = userStore.accessToken
   }
@@ -22,14 +27,30 @@ request.interceptors.request.use((config) => {
 
 request.interceptors.response.use(
   (response) => {
+    const uiStore = useUiStore()
+    if (response.config?.showLoading !== false) {
+      uiStore.stopLoading()
+    }
     const data = response.data
     if (data.code === 200) {
+      const method = response.config?.method?.toUpperCase()
+      if (response.config?.successMessage) {
+        uiStore.notify(response.config.successMessage, 'success')
+      } else if (method && method !== 'GET' && response.config?.silentSuccess !== true) {
+        uiStore.notify(data.message || '操作成功', 'success')
+      }
       return data
     }
-    return Promise.reject(new Error(data.message || '请求失败'))
+    const message = data.message || '请求失败'
+    uiStore.notify(message, 'error')
+    return Promise.reject(new Error(message))
   },
   async (error) => {
+    const uiStore = useUiStore()
     const originalRequest = error.config
+    if (originalRequest?.showLoading !== false) {
+      uiStore.stopLoading()
+    }
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       const userStore = useUserStore()
@@ -44,6 +65,8 @@ request.interceptors.response.use(
         }
       }
     }
+    const message = error.response?.data?.message || error.message || '网络异常，请稍后重试'
+    uiStore.notify(message, 'error')
     return Promise.reject(error)
   }
 )

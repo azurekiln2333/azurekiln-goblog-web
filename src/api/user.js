@@ -12,7 +12,9 @@ export const updateProfile = (data) => request.put('/user/update', data)
 
 export const adminUpdateUser = (data) => request.put('/user/admin/update', data)
 
-export const adminGetUserList = (params) => request.get('/user/admin/list', { params })
+export const getUserList = (params) => request.get('/user/list', { params })
+
+export const adminGetUserList = getUserList
 
 export const refreshToken = () => request.post('/user/token')
 
@@ -24,4 +26,4 @@ export const resetEmail = (data) => request.put('/user/resetEmail', data)
 
 export const getLoginLog = (params) => request.get('/user/loginlog', { params })
 
-export const updatePassword = (data) => request.put('/user/update_password', data)
+export const updatePassword = (data) => request.put('/user/password', data)

@@ -1,11 +1,11 @@
 import request from '@/utils/request'
 
-export const followUser = (data) => request.post('/follow', data)
+export const followUser = (data) => request.post('/user/follow', data)
 
-export const unfollowUser = (data) => request.delete('/follow', { data })
+export const unfollowUser = (data) => request.post('/user/follow/unfollow', data)
 
-export const getFollowList = (params) => request.get('/follow/list', { params })
+export const getFollowList = (params) => request.get('/user/follow/list', { params })
 
-export const getFollowerList = (params) => request.get('/follower/list', { params })
+export const getFollowerList = (params) => request.get('/user/follower/list', { params })
 
-export const getFriendList = (params) => request.get('/follow/friend', { params })
+export const checkFriend = (params) => request.get('/user/friend/check', { params })
