@@ -66,6 +66,7 @@ npm run build
 - `GET /banner` 后端当前只查询 `isShow=true` 的轮播图，后台隐藏轮播图后该项会从列表中消失，不能通过同一列表重新显示。
 - `GET /friendLink` 和 `GET /friendPromotion` 后端当前只查询 `is_show=true` 的记录，隐藏友链或推广后该项会从后台列表中消失。
 - `POST /msg/conf/update` 后端当前实现会在绑定请求体后重新查询同名变量，可能覆盖请求中的新值；前端已提供设置入口和失败回滚，但实际保存效果取决于后端修正。
+- `GET /user/follower/list` 后端当前实现疑似仍按 `user_id` 查询，可能返回关注列表而非真实粉丝列表；前端已提供兼容展示，但数据准确性取决于后端修正。
 - `TestRouter` 只在 debug 模式注册，前端不作为正式功能覆盖。
 
 ## 繁體中文
@@ -105,6 +106,7 @@ npm run build
 - `GET /banner` 目前只回傳 `isShow=true` 的輪播圖，隱藏後不會再出現在同一列表中。
 - `GET /friendLink` 與 `GET /friendPromotion` 目前只回傳 `is_show=true` 的記錄，隱藏後不會再出現在後台列表中。
 - `POST /msg/conf/update` 目前後端可能在綁定請求後重新查詢並覆蓋新值；前端已提供設定入口與失敗回滾，實際保存效果需後端修正。
+- `GET /user/follower/list` 目前後端疑似仍按 `user_id` 查詢，可能回傳關注列表而非真實粉絲列表；前端已做相容展示，資料準確性需後端修正。
 
 ## English
 
@@ -143,3 +145,4 @@ Build output goes to `dist/`. The frontend no longer writes directly into the ol
 - `GET /banner` currently returns only banners with `isShow=true`, so hidden banners disappear from the same admin list.
 - `GET /friendLink` and `GET /friendPromotion` currently return only records with `is_show=true`, so hidden items disappear from the admin list.
 - `POST /msg/conf/update` may overwrite submitted values by re-querying into the same backend variable after binding. The UI includes settings and failure rollback, but persistence depends on a backend fix.
+- `GET /user/follower/list` appears to query by `user_id`, so it may return following records instead of true followers. The UI renders it defensively, but data accuracy depends on a backend fix.

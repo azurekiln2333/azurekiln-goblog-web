@@ -17,8 +17,8 @@
           <h2 class="text-xl font-bold tracking-tight">{{ userInfo.nickName || '用户' }}</h2>
           <p class="text-on-surface-variant text-sm font-medium mt-1">{{ userInfo.abstract || '暂无简介' }}</p>
           <div class="flex justify-center gap-6 mt-4 text-xs text-slate-500">
-            <span>{{ userInfo.followCount || 0 }} 关注</span>
-            <span>{{ userInfo.fansCount || 0 }} 粉丝</span>
+            <button class="hover:text-primary" @click="switchTab('following')">{{ userInfo.followCount || 0 }} 关注</button>
+            <button class="hover:text-primary" @click="switchTab('followers')">{{ userInfo.fansCount || 0 }} 粉丝</button>
           </div>
           <div class="mt-6 flex justify-center gap-3">
             <button
@@ -51,16 +51,30 @@
           <button
             class="px-6 py-3 text-sm font-bold border-b-2 transition-colors"
             :class="activeTab === 'articles' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant'"
-            @click="activeTab = 'articles'"
+            @click="switchTab('articles')"
           >
             TA的文章
           </button>
           <button
             class="px-6 py-3 text-sm font-bold border-b-2 transition-colors"
             :class="activeTab === 'collections' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant'"
-            @click="activeTab = 'collections'"
+            @click="switchTab('collections')"
           >
             TA的收藏
+          </button>
+          <button
+            class="px-6 py-3 text-sm font-bold border-b-2 transition-colors"
+            :class="activeTab === 'following' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant'"
+            @click="switchTab('following')"
+          >
+            关注
+          </button>
+          <button
+            class="px-6 py-3 text-sm font-bold border-b-2 transition-colors"
+            :class="activeTab === 'followers' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant'"
+            @click="switchTab('followers')"
+          >
+            粉丝
           </button>
         </div>
 
@@ -84,6 +98,64 @@
           </div>
           <div v-if="!loadingFolders && folders.length === 0" class="col-span-2 text-center py-12 text-slate-400">暂无公开收藏夹</div>
         </div>
+
+        <div v-if="activeTab === 'following'" class="space-y-4">
+          <div v-if="loadingFollowing" class="py-16 text-center text-slate-400">
+            <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+            <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载关注列表中</p>
+          </div>
+          <div v-if="followError" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {{ followError }}
+          </div>
+          <button
+            v-for="item in followingList"
+            :key="`following-${item.userID}`"
+            class="w-full rounded-xl bg-white p-5 text-left border border-blue-100 hover:border-blue-200 hover:bg-blue-light transition-colors"
+            @click="$router.push(`/user/${item.userID}`)"
+          >
+            <div class="flex items-center gap-4">
+              <div class="h-12 w-12 rounded-full bg-blue-100 overflow-hidden flex items-center justify-center">
+                <img v-if="item.avatar" :src="item.avatar" :alt="item.nickName" class="h-full w-full object-cover" />
+                <span v-else class="text-sm font-bold text-blue-600">{{ (item.nickName || '?')[0] }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <h4 class="font-bold text-sm text-on-surface">{{ item.nickName || `用户 #${item.userID}` }}</h4>
+                <p class="mt-1 truncate text-xs text-on-surface-variant">{{ item.abstract || '暂无简介' }}</p>
+              </div>
+              <span class="text-[10px] text-slate-400">{{ formatDate(item.createdAt) }}</span>
+            </div>
+          </button>
+          <div v-if="!loadingFollowing && followingList.length === 0 && !followError" class="text-center py-12 text-slate-400">暂无公开关注</div>
+        </div>
+
+        <div v-if="activeTab === 'followers'" class="space-y-4">
+          <div v-if="loadingFollowers" class="py-16 text-center text-slate-400">
+            <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+            <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载粉丝列表中</p>
+          </div>
+          <div v-if="followerError" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {{ followerError }}
+          </div>
+          <button
+            v-for="item in followerList"
+            :key="`follower-${item.userID}-${item.createdAt}`"
+            class="w-full rounded-xl bg-white p-5 text-left border border-blue-100 hover:border-blue-200 hover:bg-blue-light transition-colors"
+            @click="$router.push(`/user/${item.userID}`)"
+          >
+            <div class="flex items-center gap-4">
+              <div class="h-12 w-12 rounded-full bg-blue-100 overflow-hidden flex items-center justify-center">
+                <img v-if="item.avatar" :src="item.avatar" :alt="item.nickName" class="h-full w-full object-cover" />
+                <span v-else class="text-sm font-bold text-blue-600">{{ (item.nickName || '?')[0] }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <h4 class="font-bold text-sm text-on-surface">{{ item.nickName || `用户 #${item.userID}` }}</h4>
+                <p class="mt-1 truncate text-xs text-on-surface-variant">{{ item.abstract || '暂无简介' }}</p>
+              </div>
+              <span class="text-[10px] text-slate-400">{{ formatDate(item.createdAt) }}</span>
+            </div>
+          </button>
+          <div v-if="!loadingFollowers && followerList.length === 0 && !followerError" class="text-center py-12 text-slate-400">暂无公开粉丝</div>
+        </div>
       </div>
     </div>
   </main>
@@ -94,7 +166,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getUserInfo } from '@/api/user'
 import { getArticleList, getCollectFolders } from '@/api/article'
-import { followUser, unfollowUser, getFollowList } from '@/api/follow'
+import { followUser, unfollowUser, getFollowList, getFollowerList } from '@/api/follow'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
 import ArticleCard from '@/components/home/ArticleCard.vue'
@@ -106,11 +178,17 @@ const uiStore = useUiStore()
 const userInfo = ref({})
 const articles = ref([])
 const folders = ref([])
+const followingList = ref([])
+const followerList = ref([])
 const activeTab = ref('articles')
 const loadingUser = ref(false)
 const loadingArticles = ref(false)
 const loadingFolders = ref(false)
+const loadingFollowing = ref(false)
+const loadingFollowers = ref(false)
 const errorMsg = ref('')
+const followError = ref('')
+const followerError = ref('')
 const followLoading = ref(false)
 const isFollowing = ref(false)
 
@@ -151,6 +229,16 @@ async function fetchData() {
   await fetchFollowState(userId)
 }
 
+function switchTab(tab) {
+  activeTab.value = tab
+  if (tab === 'following' && followingList.value.length === 0) {
+    fetchFollowing()
+  }
+  if (tab === 'followers' && followerList.value.length === 0) {
+    fetchFollowers()
+  }
+}
+
 async function fetchFollowState(userId) {
   if (!userStore.isLoggedIn || isSelfProfile.value) {
     isFollowing.value = false
@@ -163,6 +251,62 @@ async function fetchFollowState(userId) {
   } catch {
     isFollowing.value = false
   }
+}
+
+async function fetchFollowing() {
+  loadingFollowing.value = true
+  followError.value = ''
+  try {
+    const res = await getFollowList({ userID: profileUserId.value, page: 1, limit: 50 })
+    const list = res.data?.list || []
+    followingList.value = await normalizeRelationList(list, 'following')
+  } catch (e) {
+    followingList.value = []
+    followError.value = e.message || '关注列表加载失败'
+  } finally {
+    loadingFollowing.value = false
+  }
+}
+
+async function fetchFollowers() {
+  loadingFollowers.value = true
+  followerError.value = ''
+  try {
+    const res = await getFollowerList({ userID: profileUserId.value, page: 1, limit: 50 })
+    const list = res.data?.list || []
+    followerList.value = await normalizeRelationList(list, 'followers')
+  } catch (e) {
+    followerList.value = []
+    followerError.value = e.message || '粉丝列表加载失败'
+  } finally {
+    loadingFollowers.value = false
+  }
+}
+
+async function normalizeRelationList(list, type) {
+  const normalized = list.map((item) => {
+    const userID = type === 'following'
+      ? (item.focusUserID || item.userID)
+      : (item.userID || item.focusUserID)
+    return {
+      userID,
+      nickName: item.focusUserNickname || item.userNickname || item.nickName || '',
+      avatar: item.focusUserAvatar || item.userAvatar || item.avatar || '',
+      abstract: item.focusUserAbstract || item.userAbstract || item.abstract || '',
+      createdAt: item.createdAt
+    }
+  }).filter(item => item.userID)
+
+  const needHydrate = normalized.filter(item => !item.nickName).slice(0, 20)
+  const details = await Promise.allSettled(needHydrate.map(item => getUserInfo(item.userID)))
+  details.forEach((result, index) => {
+    if (result.status !== 'fulfilled') return
+    const data = result.value?.data || {}
+    needHydrate[index].nickName = data.nickName || data.nickname || needHydrate[index].nickName
+    needHydrate[index].avatar = data.avatar || needHydrate[index].avatar
+    needHydrate[index].abstract = data.abstract || needHydrate[index].abstract
+  })
+  return normalized
 }
 
 async function toggleFollow() {
@@ -200,6 +344,17 @@ function openMessage() {
   router.push({ name: 'Messages', query: { userId: profileUserId.value } })
 }
 
-watch(() => route.params.id, fetchData)
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+watch(() => route.params.id, () => {
+  followingList.value = []
+  followerList.value = []
+  activeTab.value = 'articles'
+  fetchData()
+})
 onMounted(fetchData)
 </script>
