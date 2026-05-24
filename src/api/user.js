@@ -25,5 +25,3 @@ export const sendEmailCode = (data) => request.post('/user/send_email', data)
 export const resetEmail = (data) => request.put('/user/resetEmail', data)
 
 export const getLoginLog = (params) => request.get('/user/loginlog', { params })
-
-export const updatePassword = (data) => request.put('/user/password', data)
