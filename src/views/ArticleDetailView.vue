@@ -114,6 +114,7 @@
               :pending-action-id="commentActionId"
               @reply="handleReply"
               @digg="handleCommentDigg"
+              @deleted="fetchComments"
             />
           </div>
 

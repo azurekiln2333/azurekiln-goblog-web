@@ -26,6 +26,15 @@
           <span v-if="isPending(comment.id)" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
           赞同 ({{ comment.diggCount || 0 }})
         </button>
+        <button
+          v-if="canDelete(comment)"
+          class="inline-flex items-center gap-1 text-[10px] font-bold text-red-500 hover:text-red-700 uppercase tracking-widest disabled:opacity-50"
+          :disabled="deleteActionId === comment.id"
+          @click="deleteCommentItem(comment.id)"
+        >
+          <span v-if="deleteActionId === comment.id" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+          删除
+        </button>
       </div>
 
       <div v-if="showReplyInput" class="mt-4 flex gap-3">
@@ -69,6 +78,15 @@
                 <span v-if="isPending(child.id)" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
                 赞同 ({{ child.diggCount || 0 }})
               </button>
+              <button
+                v-if="canDelete(child)"
+                class="inline-flex items-center gap-1 text-[10px] font-bold text-red-500 hover:text-red-700 uppercase tracking-widest disabled:opacity-50"
+                :disabled="deleteActionId === child.id"
+                @click="deleteCommentItem(child.id)"
+              >
+                <span v-if="deleteActionId === child.id" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                删除
+              </button>
             </div>
             <div v-if="replyToChild === child.id" class="mt-3 flex gap-3">
               <input
@@ -105,7 +123,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getChildComments } from '@/api/comment'
+import { getChildComments, deleteComment } from '@/api/comment'
+import { useUserStore } from '@/stores/user'
 
 const props = defineProps({
   comment: { type: Object, required: true },
@@ -113,7 +132,8 @@ const props = defineProps({
   pendingActionId: { type: Number, default: null }
 })
 
-const emit = defineEmits(['reply', 'digg'])
+const emit = defineEmits(['reply', 'digg', 'deleted'])
+const userStore = useUserStore()
 
 const childComments = ref([])
 const showReplyInput = ref(false)
@@ -123,6 +143,7 @@ const childReplyText = ref('')
 const childrenLoaded = ref(false)
 const hasMoreChildren = ref(true)
 const childrenLoading = ref(false)
+const deleteActionId = ref(null)
 const errorMsg = ref('')
 
 const isAuthor = props.comment.userID === props.articleAuthorId
@@ -156,6 +177,24 @@ async function loadChildren() {
 
 function isPending(id) {
   return props.pendingActionId === id
+}
+
+function canDelete(item) {
+  if (!userStore.isLoggedIn) return false
+  return userStore.isAdmin || Number(userStore.userInfo?.id) === Number(item.userID)
+}
+
+async function deleteCommentItem(id) {
+  deleteActionId.value = id
+  errorMsg.value = ''
+  try {
+    await deleteComment(id)
+    emit('deleted')
+  } catch (e) {
+    errorMsg.value = e.message || '评论删除失败'
+  } finally {
+    deleteActionId.value = null
+  }
 }
 
 function submitReply() {

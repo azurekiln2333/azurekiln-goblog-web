@@ -24,7 +24,7 @@
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div v-for="img in images" :key="img.id" class="aspect-square rounded-2xl overflow-hidden relative group border border-slate-200">
-        <img :src="img.webPath || `/api/image?id=${img.id}`" :alt="img.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img :src="img.webPath || getImageUrl(img.id)" :alt="img.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
           <button class="p-2 bg-white rounded-lg" @click="copyImageUrl(img)">
             <span class="material-symbols-outlined text-primary text-sm">content_copy</span>
@@ -53,7 +53,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getImageList, uploadImage, deleteImages } from '@/api/image'
+import { getImageList, uploadImage, deleteImages, getImageUrl } from '@/api/image'
 
 const images = ref([])
 const fileInput = ref(null)
@@ -97,7 +97,7 @@ async function handleUpload(e) {
 }
 
 function copyImageUrl(img) {
-  const url = img.webPath || `/api/image?id=${img.id}`
+  const url = img.webPath || getImageUrl(img.id)
   navigator.clipboard?.writeText(url)
 }
 
