@@ -101,6 +101,13 @@
           >
             浏览记录
           </button>
+          <button
+            class="px-6 py-3 text-sm font-bold border-b-2 transition-colors"
+            :class="activeTab === 'settings' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'"
+            @click="activeTab = 'settings'"
+          >
+            资料设置
+          </button>
         </div>
 
         <div v-if="errorMsg" class="mx-6 mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -230,6 +237,109 @@
               暂无浏览记录
             </div>
           </div>
+
+          <div v-if="activeTab === 'settings'" class="space-y-8">
+            <form class="space-y-5" @submit.prevent="saveProfile">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">昵称</label>
+                  <input v-model="profileForm.nickName" class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" maxlength="32" />
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">年龄</label>
+                  <input v-model.number="profileForm.Age" type="number" min="0" class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">头像 URL</label>
+                  <input v-model="profileForm.avatar" class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="https://..." />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">简介</label>
+                  <textarea v-model="profileForm.abstract" class="mt-1 w-full resize-none rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" rows="3"></textarea>
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">兴趣标签</label>
+                  <input v-model="profileForm.likeTagsText" class="mt-1 w-full rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Vue, Go, 摄影" />
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">联系方式</label>
+                  <textarea v-model="profileForm.contactInfoText" class="mt-1 w-full resize-none rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-primary" rows="2" placeholder="github=https://github.com/name"></textarea>
+                </div>
+              </div>
+
+              <div class="rounded-xl bg-slate-50 p-4">
+                <h3 class="text-sm font-bold text-slate-900">公开设置</h3>
+                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" v-model="profileForm.openCollect" />
+                    公开收藏夹
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" v-model="profileForm.openFollow" />
+                    公开关注
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" v-model="profileForm.openFans" />
+                    公开粉丝
+                  </label>
+                </div>
+              </div>
+
+              <div v-if="profileError" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {{ profileError }}
+              </div>
+              <div v-if="profileSuccess" class="rounded-lg bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+                {{ profileSuccess }}
+              </div>
+
+              <div class="flex justify-end">
+                <button class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" :disabled="profileSaving">
+                  <span v-if="profileSaving" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                  {{ profileSaving ? '保存中...' : '保存资料' }}
+                </button>
+              </div>
+            </form>
+
+            <div class="border-t border-slate-100 pt-6">
+              <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-slate-900">登录日志</h3>
+                <button class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-50" :disabled="loginLogsLoading" @click="fetchLoginLogs">
+                  <span v-if="loginLogsLoading" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  刷新
+                </button>
+              </div>
+              <div v-if="loginLogsError" class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {{ loginLogsError }}
+              </div>
+              <div v-if="loginLogsLoading" class="py-10 text-center text-slate-400">
+                <span class="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+                <p class="mt-2 text-xs font-bold uppercase tracking-widest">加载登录日志中</p>
+              </div>
+              <div v-else class="overflow-hidden rounded-xl ring-1 ring-slate-100">
+                <table class="w-full text-sm">
+                  <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <tr>
+                      <th class="px-4 py-3 text-left">时间</th>
+                      <th class="px-4 py-3 text-left">IP</th>
+                      <th class="px-4 py-3 text-left">地址</th>
+                      <th class="px-4 py-3 text-left">设备</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-50">
+                    <tr v-for="log in loginLogs" :key="log.id">
+                      <td class="px-4 py-3 text-slate-600">{{ formatDateTime(log.createdAt) }}</td>
+                      <td class="px-4 py-3 text-slate-600">{{ log.ip || '-' }}</td>
+                      <td class="px-4 py-3 text-slate-600">{{ log.addr || '-' }}</td>
+                      <td class="px-4 py-3 text-slate-500">{{ log.userAgent || '-' }}</td>
+                    </tr>
+                    <tr v-if="loginLogs.length === 0">
+                      <td colspan="4" class="px-4 py-10 text-center text-sm text-slate-400">暂无登录日志</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -346,6 +456,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMessageStore } from '@/stores/message'
+import { updateProfile, getLoginLog } from '@/api/user'
 import {
   createCollectFolder,
   getCollectFolders,
@@ -370,13 +481,28 @@ const folderArticles = ref([])
 const myArticles = ref([])
 const historyList = ref([])
 const sessions = ref([])
+const loginLogs = ref([])
 const showCreateFolder = ref(false)
 const editingFolder = ref(null)
 const folderForm = ref({ title: '', abstract: '', cover: '' })
 const editFolderForm = ref({ title: '', abstract: '', cover: '' })
+const profileForm = ref({
+  nickName: '',
+  avatar: '',
+  abstract: '',
+  Age: 0,
+  likeTagsText: '',
+  contactInfoText: '',
+  openCollect: true,
+  openFollow: true,
+  openFans: true
+})
 const folderSaving = ref(false)
 const folderActionKey = ref('')
 const folderError = ref('')
+const profileSaving = ref(false)
+const profileError = ref('')
+const profileSuccess = ref('')
 const errorMsg = ref('')
 const collectionsLoading = ref(false)
 const folderArticlesLoading = ref(false)
@@ -384,6 +510,8 @@ const articlesLoading = ref(false)
 const historyLoading = ref(false)
 const historyActionKey = ref('')
 const sessionsLoading = ref(false)
+const loginLogsLoading = ref(false)
+const loginLogsError = ref('')
 
 const totalUnread = computed(() => messageStore.getTotalUnread())
 
@@ -392,11 +520,88 @@ onMounted(async () => {
     router.push('/login')
     return
   }
+  if (!userStore.userInfo) {
+    await userStore.fetchUserInfo()
+  }
+  fillProfileForm()
   fetchCollectFolders()
   fetchMyArticles()
   fetchHistory()
   fetchSessions()
+  fetchLoginLogs()
 })
+
+function fillProfileForm() {
+  const info = userStore.userInfo || {}
+  const contactInfo = info.contactInfo && typeof info.contactInfo === 'object' ? info.contactInfo : {}
+  profileForm.value = {
+    nickName: info.nickName || info.nickname || '',
+    avatar: info.avatar || '',
+    abstract: info.abstract || '',
+    Age: info.Age || info.age || 0,
+    likeTagsText: Array.isArray(info.likeTags) ? info.likeTags.join(', ') : '',
+    contactInfoText: Object.entries(contactInfo).map(([key, value]) => `${key}=${value}`).join('\n'),
+    openCollect: info.openCollect !== false,
+    openFollow: info.openFollow !== false,
+    openFans: info.openFans !== false
+  }
+}
+
+function parseContactInfo(value) {
+  const result = {}
+  value.split('\n').map(line => line.trim()).filter(Boolean).forEach((line) => {
+    const index = line.indexOf('=')
+    if (index <= 0) return
+    const key = line.slice(0, index).trim()
+    const val = line.slice(index + 1).trim()
+    if (key && val) result[key] = val
+  })
+  return result
+}
+
+async function saveProfile() {
+  profileError.value = ''
+  profileSuccess.value = ''
+  const tags = profileForm.value.likeTagsText.split(/[,，\n]/).map(item => item.trim()).filter(Boolean)
+  if (tags.length > 36) {
+    profileError.value = '兴趣标签不能超过 36 个'
+    return
+  }
+  profileSaving.value = true
+  try {
+    await updateProfile({
+      nickName: profileForm.value.nickName.trim(),
+      avatar: profileForm.value.avatar.trim(),
+      abstract: profileForm.value.abstract.trim(),
+      Age: Number(profileForm.value.Age || 0),
+      likeTags: tags,
+      contactInfo: parseContactInfo(profileForm.value.contactInfoText),
+      openCollect: profileForm.value.openCollect,
+      openFollow: profileForm.value.openFollow,
+      openFans: profileForm.value.openFans
+    })
+    await userStore.fetchUserInfo()
+    fillProfileForm()
+    profileSuccess.value = '资料已保存'
+  } catch (e) {
+    profileError.value = e.message || '资料保存失败'
+  } finally {
+    profileSaving.value = false
+  }
+}
+
+async function fetchLoginLogs() {
+  loginLogsLoading.value = true
+  loginLogsError.value = ''
+  try {
+    const res = await getLoginLog({ type: 'user', page: 1, limit: 20 })
+    loginLogs.value = res.data?.list || []
+  } catch (e) {
+    loginLogsError.value = e.message || '登录日志加载失败'
+  } finally {
+    loginLogsLoading.value = false
+  }
+}
 
 async function fetchCollectFolders() {
   collectionsLoading.value = true
@@ -620,5 +825,11 @@ function formatDate(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 </script>
