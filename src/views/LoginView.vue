@@ -81,6 +81,23 @@
           </button>
         </form>
 
+        <div class="my-6 flex items-center gap-3">
+          <div class="h-px flex-1 bg-slate-100"></div>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">其他方式</span>
+          <div class="h-px flex-1 bg-slate-100"></div>
+        </div>
+
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 ring-1 ring-slate-200 transition-colors hover:bg-blue-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="qqLoading"
+          @click="handleQQLogin"
+        >
+          <span v-if="qqLoading" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          <span v-else class="material-symbols-outlined text-base">account_circle</span>
+          {{ qqLoading ? '正在获取授权地址...' : '使用 QQ 登录' }}
+        </button>
+
         <div class="mt-6 text-center">
           <router-link to="/register" class="text-sm text-primary hover:underline">还没有账户？立即注册</router-link>
         </div>
@@ -94,6 +111,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getCaptcha } from '@/api/captcha'
+import { getQQLoginUrl } from '@/api/site'
 
 const router = useRouter()
 const route = useRoute()
@@ -103,6 +121,7 @@ const loginType = ref('用户名')
 const form = ref({ val: '', pwd: '', captchaID: '', captchaCode: '' })
 const captchaData = ref(null)
 const loading = ref(false)
+const qqLoading = ref(false)
 const errorMsg = ref('')
 
 async function fetchCaptcha() {
@@ -137,6 +156,24 @@ async function handleLogin() {
     }
   }
   loading.value = false
+}
+
+async function handleQQLogin() {
+  qqLoading.value = true
+  errorMsg.value = ''
+  try {
+    const res = await getQQLoginUrl()
+    const url = res.data
+    if (!url) {
+      errorMsg.value = 'QQ 登录未返回授权地址'
+      return
+    }
+    window.location.href = url
+  } catch (e) {
+    errorMsg.value = e.message || 'QQ 登录授权地址获取失败'
+  } finally {
+    qqLoading.value = false
+  }
 }
 
 onMounted(fetchCaptcha)
