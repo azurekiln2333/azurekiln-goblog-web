@@ -73,6 +73,7 @@ const userStore = useUserStore()
 const menuItems = [
   { path: '/admin', icon: 'dashboard', label: '仪表盘' },
   { path: '/admin/articles', icon: 'list_alt', label: '文章管理' },
+  { path: '/admin/categories', icon: 'category', label: '分类管理' },
   { path: '/admin/users', icon: 'group', label: '用户管理' },
   { path: '/admin/images', icon: 'image', label: '媒体库' },
   { path: '/admin/banners', icon: 'view_carousel', label: '轮播图' },

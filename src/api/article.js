@@ -34,11 +34,11 @@ export const getArticleHistory = (params) => request.get('/article/history', { p
 
 export const deleteArticleHistory = (data) => request.delete('/article/history', { data })
 
-export const createOrUpdateCategory = (data) => request.post('/article/category', data)
+export const createOrUpdateCategory = (data, config = {}) => request.post('/article/category', data, config)
 
 export const getCategoryList = (params) => request.get('/article/category', { params })
 
-export const deleteCategory = (data) => request.delete('/article/category', { data })
+export const deleteCategory = (data, config = {}) => request.delete('/article/category', { data, ...config })
 
 export const collectArticle = (data) => request.post('/article/collect', data)
 
