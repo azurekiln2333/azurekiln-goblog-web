@@ -106,11 +106,14 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 async function fetchCaptcha() {
+  errorMsg.value = ''
   try {
     const res = await getCaptcha(loginType.value)
     captchaData.value = res.data
     form.value.captchaID = res.data.captchaID
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '验证码加载失败'
+  }
 }
 
 async function handleLogin() {
@@ -128,7 +131,10 @@ async function handleLogin() {
     router.push(redirect)
   } catch (e) {
     errorMsg.value = e.message || '登录失败'
-    fetchCaptcha()
+    await fetchCaptcha()
+    if (!errorMsg.value) {
+      errorMsg.value = e.message || '登录失败'
+    }
   }
   loading.value = false
 }

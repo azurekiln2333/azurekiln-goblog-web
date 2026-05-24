@@ -11,10 +11,14 @@
             type="text"
             @keyup.enter="handleSearch"
           />
-          <button class="absolute right-4 top-1/2 -translate-y-1/2 text-blue-600" @click="handleSearch">
-            <span class="material-symbols-outlined text-2xl">search</span>
+          <button class="absolute right-4 top-1/2 -translate-y-1/2 text-blue-600 disabled:opacity-50" :disabled="loading" @click="handleSearch">
+            <span class="material-symbols-outlined text-2xl" :class="{ 'animate-spin': loading }">{{ loading ? 'progress_activity' : 'search' }}</span>
           </button>
         </div>
+      </div>
+
+      <div v-if="errorMsg" class="mb-8 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+        {{ errorMsg }}
       </div>
 
       <div v-if="tagList.length > 0" class="mb-8 flex flex-wrap gap-2">
@@ -64,11 +68,13 @@ const loading = ref(false)
 const searched = ref(false)
 const tagList = ref([])
 const selectedTag = ref('')
+const errorMsg = ref('')
 
 async function handleSearch() {
   if (!searchKey.value.trim() && !selectedTag.value) return
   loading.value = true
   searched.value = true
+  errorMsg.value = ''
   try {
     const params = { page: 1, limit: 20 }
     if (searchKey.value.trim()) params.key = searchKey.value.trim()
@@ -76,8 +82,13 @@ async function handleSearch() {
     const res = await searchArticle(params)
     articles.value = res.data?.list || []
     total.value = res.data?.count || 0
-  } catch { /* ignore */ }
-  loading.value = false
+  } catch (e) {
+    errorMsg.value = e.message || '搜索失败'
+    articles.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
 }
 
 function toggleTag(tag) {

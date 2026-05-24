@@ -8,6 +8,9 @@
           <span class="material-symbols-outlined animate-spin text-4xl">progress_activity</span>
           <p class="mt-4">加载中...</p>
         </div>
+        <div v-else-if="errorMsg" class="rounded-lg bg-red-50 px-4 py-6 text-center text-sm font-semibold text-red-700">
+          {{ errorMsg }}
+        </div>
         <div v-else-if="articles.length === 0" class="text-center py-20 text-slate-400">
           <span class="material-symbols-outlined text-4xl">article</span>
           <p class="mt-4">暂无文章</p>
@@ -59,11 +62,13 @@ const limit = ref(10)
 const total = ref(0)
 const selectedCategory = ref(null)
 const heroBanner = ref(null)
+const errorMsg = ref('')
 
 const totalPages = computed(() => Math.ceil(total.value / limit.value))
 
 async function fetchArticles() {
   loading.value = true
+  errorMsg.value = ''
   try {
     const params = {
       type: 'other',
@@ -76,8 +81,13 @@ async function fetchArticles() {
     const res = await getArticleList(params)
     articles.value = res.data?.list || []
     total.value = res.data?.count || 0
-  } catch { /* ignore */ }
-  loading.value = false
+  } catch (e) {
+    errorMsg.value = e.message || '文章列表加载失败'
+    articles.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
 }
 
 async function fetchBanner() {
@@ -87,7 +97,9 @@ async function fetchBanner() {
     if (banners.length > 0) {
       heroBanner.value = banners[0]
     }
-  } catch { /* ignore */ }
+  } catch {
+    heroBanner.value = null
+  }
 }
 
 function goToPage(p) {

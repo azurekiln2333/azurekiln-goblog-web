@@ -124,11 +124,14 @@ const errorMsg = ref('')
 const countdown = ref(0)
 
 async function fetchCaptcha() {
+  errorMsg.value = ''
   try {
     const res = await getCaptcha('注册')
     captchaData.value = res.data
     form.value.captchaID = res.data.captchaID
-  } catch { /* ignore */ }
+  } catch (e) {
+    errorMsg.value = e.message || '验证码加载失败'
+  }
 }
 
 async function sendCode() {
@@ -151,7 +154,10 @@ async function sendCode() {
     }, 1000)
   } catch (e) {
     errorMsg.value = e.message || '发送失败'
-    fetchCaptcha()
+    await fetchCaptcha()
+    if (!errorMsg.value) {
+      errorMsg.value = e.message || '发送失败'
+    }
   }
 }
 
