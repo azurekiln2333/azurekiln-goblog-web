@@ -28,6 +28,43 @@
             </button>
           </div>
         </div>
+
+        <div class="mt-6 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="font-bold text-sm">通知设置</h3>
+            <button
+              class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-50"
+              :disabled="confLoading"
+              @click="fetchMessageConf"
+            >
+              <span v-if="confLoading" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              刷新
+            </button>
+          </div>
+          <div v-if="confError" class="m-4 rounded-lg bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+            {{ confError }}
+          </div>
+          <div v-if="confLoading && !messageConf" class="p-6 text-center text-slate-400">
+            <span class="material-symbols-outlined animate-spin">progress_activity</span>
+            <p class="mt-2 text-[10px] font-bold uppercase tracking-widest">加载设置中</p>
+          </div>
+          <div v-else class="divide-y divide-slate-50">
+            <label
+              v-for="item in confItems"
+              :key="item.key"
+              class="flex items-center justify-between gap-4 p-4 text-sm"
+            >
+              <span class="font-medium text-slate-700">{{ item.label }}</span>
+              <input
+                type="checkbox"
+                class="h-4 w-4"
+                :checked="messageConf?.[item.key] !== false"
+                :disabled="confSavingKey === item.key"
+                @change="updateConf(item.key, $event.target.checked)"
+              />
+            </label>
+          </div>
+        </div>
       </aside>
 
       <div class="col-span-12 lg:col-span-8">
@@ -164,7 +201,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getMessageList, checkUnread, clearMessages, deleteMessages } from '@/api/message'
+import { getMessageList, checkUnread, clearMessages, deleteMessages, getMessageConf, updateMessageConf } from '@/api/message'
 import { getChatHistory, getChatSessions, sendChat } from '@/api/chat'
 
 const route = useRoute()
@@ -184,6 +221,10 @@ const chatSessionsLoading = ref(false)
 const chatLoading = ref(false)
 const chatSending = ref(false)
 const chatError = ref('')
+const messageConf = ref(null)
+const confLoading = ref(false)
+const confSavingKey = ref('')
+const confError = ref('')
 
 const messageTabs = [
   { type: 0, label: '评论通知', icon: 'chat_bubble' },
@@ -192,6 +233,14 @@ const messageTabs = [
   { type: 3, label: '收藏通知', icon: 'bookmark' },
   { type: 4, label: '私信', icon: 'mail' },
   { type: 5, label: '系统通知', icon: 'notifications' }
+]
+
+const confItems = [
+  { key: 'openCommentMessage', label: '评论通知' },
+  { key: 'openReplyMessage', label: '回复通知' },
+  { key: 'openDiggMessage', label: '点赞通知' },
+  { key: 'openCollectMessage', label: '收藏通知' },
+  { key: 'openPrivateMessage', label: '私信通知' }
 ]
 
 const currentTabLabel = computed(() => {
@@ -222,6 +271,36 @@ async function fetchUnread() {
     unreadCounts.value = res.data || {}
   } catch (e) {
     errorMsg.value = e.message || '未读数量加载失败'
+  }
+}
+
+async function fetchMessageConf() {
+  confLoading.value = true
+  confError.value = ''
+  try {
+    const res = await getMessageConf()
+    messageConf.value = res.data || {}
+  } catch (e) {
+    confError.value = e.message || '通知设置加载失败'
+  } finally {
+    confLoading.value = false
+  }
+}
+
+async function updateConf(key, value) {
+  if (!messageConf.value) return
+  const previous = messageConf.value[key] !== false
+  messageConf.value = { ...messageConf.value, [key]: value }
+  confSavingKey.value = key
+  confError.value = ''
+  try {
+    await updateMessageConf({ [key]: value })
+    await fetchMessageConf()
+  } catch (e) {
+    messageConf.value = { ...messageConf.value, [key]: previous }
+    confError.value = e.message || '通知设置保存失败'
+  } finally {
+    confSavingKey.value = ''
   }
 }
 
@@ -352,6 +431,7 @@ function inferChatName(list, userId) {
 
 onMounted(() => {
   fetchUnread()
+  fetchMessageConf()
   if (route.query.userId) {
     activeType.value = 4
     fetchChatSessions()
