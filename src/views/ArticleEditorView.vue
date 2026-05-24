@@ -81,18 +81,30 @@
       <div v-if="errorMsg" class="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
         {{ errorMsg }}
       </div>
+      <div v-if="quickSaveMsg" class="rounded-lg bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+        {{ quickSaveMsg }}
+      </div>
 
       <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
         <button
           class="px-6 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors"
-          :disabled="submitting"
+          :disabled="submitting || quickSaving"
           @click="$router.back()"
         >
           取消
         </button>
         <button
+          v-if="isEdit"
+          class="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold bg-white text-primary rounded-xl ring-1 ring-blue-100 hover:bg-blue-light transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="submitting || quickSaving"
+          @click="quickSave"
+        >
+          <span v-if="quickSaving" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          {{ quickSaving ? '快速保存中...' : '快速保存' }}
+        </button>
+        <button
           class="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="submitting"
+          :disabled="submitting || quickSaving"
           @click="handleSubmit(0)"
         >
           <span v-if="submittingStatus === 0" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
@@ -100,7 +112,7 @@
         </button>
         <button
           class="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold bg-primary text-white rounded-xl shadow-lg shadow-blue-500/20 hover:opacity-90 transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="submitting"
+          :disabled="submitting || quickSaving"
           @click="handleSubmit(1)"
         >
           <span v-if="submittingStatus === 1" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
@@ -115,7 +127,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { marked } from 'marked'
-import { createArticle, updateArticle, getArticleDetail, getCategoryList } from '@/api/article'
+import { createArticle, updateArticle, updateArticleIncrement, getArticleDetail, getCategoryList } from '@/api/article'
 import { useUiStore } from '@/stores/ui'
 
 const route = useRoute()
@@ -139,6 +151,8 @@ const categories = ref([])
 const showPreview = ref(false)
 const submitting = ref(false)
 const submittingStatus = ref(null)
+const quickSaving = ref(false)
+const quickSaveMsg = ref('')
 const errorMsg = ref('')
 
 const renderedContent = computed(() => {
@@ -208,6 +222,44 @@ async function handleSubmit(status) {
   } finally {
     submitting.value = false
     submittingStatus.value = null
+  }
+}
+
+async function quickSave() {
+  if (!isEdit.value || quickSaving.value || submitting.value) return
+  errorMsg.value = ''
+  quickSaveMsg.value = ''
+  if (!form.value.title.trim()) {
+    errorMsg.value = '请先填写文章标题'
+    uiStore.notify(errorMsg.value, 'warning')
+    return
+  }
+  if (!form.value.content.trim()) {
+    errorMsg.value = '请先填写文章正文'
+    uiStore.notify(errorMsg.value, 'warning')
+    return
+  }
+
+  quickSaving.value = true
+  const tagList = tagInput.value.split(',').map(t => t.trim()).filter(Boolean)
+  try {
+    await updateArticleIncrement({
+      id: form.value.id,
+      title: form.value.title.trim(),
+      abstract: form.value.abstract.trim(),
+      content: form.value.content,
+      categoryID: form.value.categoryID,
+      tagList,
+      cover: form.value.cover.trim(),
+      openComment: form.value.openComment
+    })
+    form.value.tagList = tagList
+    quickSaveMsg.value = '文章已快速保存'
+    uiStore.notify(quickSaveMsg.value, 'success')
+  } catch (e) {
+    errorMsg.value = e.message || '快速保存失败'
+  } finally {
+    quickSaving.value = false
   }
 }
 
